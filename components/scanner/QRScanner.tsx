@@ -56,10 +56,13 @@ export function QRScanner({ onScanSuccess, isScanning }: QRScannerProps) {
               fps: 10,
               // Calculate a responsive qrbox side based on screen width
               qrbox: (viewfinderWidth, viewfinderHeight) => {
-                const minEdgePercentage = 0.85; // Increased to 85% for easier scanning
-                const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+                const minEdgePercentage = 0.8; 
+                // Fallback to a fixed size if dimensions are 0 (can happen in some browsers on init)
+                const width = viewfinderWidth || 300;
+                const height = viewfinderHeight || 300;
+                const minEdgeSize = Math.min(width, height);
                 // Ensure the qrbox is at least 50px to satisfy the library requirement
-                const qrboxSize = Math.max(50, Math.floor(minEdgeSize * minEdgePercentage));
+                const qrboxSize = Math.max(150, Math.floor(minEdgeSize * minEdgePercentage));
                 return {
                     width: qrboxSize,
                     height: qrboxSize
@@ -137,16 +140,39 @@ export function QRScanner({ onScanSuccess, isScanning }: QRScannerProps) {
     <Card className="overflow-hidden border border-white/5 p-0 bg-black flex flex-col items-center relative min-h-[400px]">
       <div id="reader" className="w-full h-full min-h-[400px]"></div>
       
+      {/* Scanning Animation / Border Overlay */}
+      {!isInitializing && (
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-20">
+          <div className="w-[70%] h-[70%] border-2 border-accent-primary/50 rounded-2xl relative">
+            {/* Corner Accents */}
+            <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-accent-primary rounded-tl-lg"></div>
+            <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-accent-primary rounded-tr-lg"></div>
+            <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-accent-primary rounded-bl-lg"></div>
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-accent-primary rounded-br-lg"></div>
+            
+            {/* Scanning Line */}
+            <div className="absolute top-0 left-4 right-4 h-[2px] bg-accent-primary/80 shadow-[0_0_15px_rgba(10,132,255,0.8)] animate-[scan_2s_ease-in-out_infinite]"></div>
+          </div>
+        </div>
+      )}
+
       {/* Overlay UI */}
-      <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-center z-10 pointer-events-none">
+      <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-center z-30 pointer-events-none">
          <div className="flex items-center gap-2 text-white/90 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full text-sm font-medium border border-white/10 shadow-lg">
             {isInitializing ? (
-               <><Loader2 className="w-4 h-4 animate-spin" /> Starting camera...</>
+               <><Loader2 className="w-4 h-4 animate-spin" /> Initializing Camera...</>
             ) : (
-               <><Camera className="w-4 h-4" /> Align QR code within frame</>
+               <><Camera className="w-4 h-4 text-accent-primary" /> Align QR code within frame</>
             )}
          </div>
       </div>
+
+      <style jsx global>{`
+        @keyframes scan {
+          0%, 100% { top: 10%; opacity: 0.5; }
+          50% { top: 90%; opacity: 1; }
+        }
+      `}</style>
     </Card>
   )
 }

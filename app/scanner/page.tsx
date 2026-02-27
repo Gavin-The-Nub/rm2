@@ -5,15 +5,22 @@ import { supabase } from "@/utils/supabase/client"
 import { QRScanner } from "@/components/scanner/QRScanner"
 import { ScanResultModal, ScanResultStatus } from "@/components/scanner/ScanResultModal"
 import { Card } from "@/components/ui/Card"
+import { Input } from "@/components/ui/Input"
+import { Button } from "@/components/ui/Button"
+import { Loader2 } from "lucide-react"
 
 export default function ScannerPage() {
   const [isScanning, setIsScanning] = useState(true)
   const [scanResult, setScanResult] = useState<{ member: any, status: ScanResultStatus } | null>(null)
 
+  const [manualId, setManualId] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const handleScanSuccess = async (decodedText: string) => {
     // Only process one scan at a time
     if (!isScanning) return
     setIsScanning(false)
+    setIsSubmitting(true)
     
     try {
       // 1. Lookup member by QR code
@@ -79,7 +86,16 @@ export default function ScannerPage() {
     } catch (err) {
       console.error("Scanning Error:", err)
       setScanResult({ member: null, status: 'invalid_qr' })
+    } finally {
+      setIsSubmitting(false)
     }
+  }
+
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!manualId.trim() || !isScanning) return
+    handleScanSuccess(manualId.trim())
+    setManualId("") // Clear after success attempt
   }
 
   const handleModalClose = () => {
@@ -105,12 +121,34 @@ export default function ScannerPage() {
             isScanning={isScanning} 
           />
           
-          <Card className="mt-8 bg-card/50 border-white/5 w-full text-center">
-            <h3 className="text-sm font-semibold text-secondary uppercase tracking-wider mb-2">Instructions</h3>
-            <p className="text-sm text-muted">
-              Align the member's QR code within the frame above. The system will automatically detect the code and validate the membership.
-            </p>
-          </Card>
+          <div className="mt-8 grid gap-4 w-full">
+            <Card className="bg-card/50 border-white/5 w-full text-center">
+              <h3 className="text-sm font-semibold text-secondary uppercase tracking-wider mb-2">Manual Input</h3>
+              <form onSubmit={handleManualSubmit} className="flex gap-2 max-w-md mx-auto">
+                <Input 
+                  placeholder="Enter Member ID (QR Code)" 
+                  value={manualId}
+                  onChange={(e) => setManualId(e.target.value)}
+                  disabled={!isScanning || isSubmitting}
+                  className="flex-1"
+                />
+                <Button 
+                  type="submit" 
+                  disabled={!isScanning || isSubmitting || !manualId.trim()}
+                  className="px-6"
+                >
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Check In"}
+                </Button>
+              </form>
+            </Card>
+
+            <Card className="bg-card/30 border-white/5 w-full text-center p-4">
+              <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">Instructions</h3>
+              <p className="text-xs text-muted/80">
+                Align the member's QR code within the frame above or enter the ID manually if the camera is unavailable.
+              </p>
+            </Card>
+          </div>
       </div>
 
       {scanResult && (
