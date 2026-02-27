@@ -32,11 +32,11 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
       {/* Desktop Sidebar */}
       <aside 
         className={cn(
-          "hidden md:flex flex-col bg-white/[0.02] backdrop-blur-[40px] border-r border-white-[0.08] transition-all duration-400 cubic-bezier(0.25, 1, 0.5, 1) z-20 shadow-[4px_0_24px_rgba(0,0,0,0.2)]",
+          "hidden md:flex flex-col bg-white/[0.02] backdrop-blur-[40px] border-r border-white/[0.04] transition-all duration-400 cubic-bezier(0.25, 1, 0.5, 1) z-20 shadow-[4px_0_24px_rgba(0,0,0,0.2)]",
           isCollapsed ? "w-[64px]" : "w-[240px]"
         )}
       >
-        <div className="flex h-16 items-center justify-between px-4 border-b border-white/[0.08]">
+        <div className="flex h-16 items-center justify-between px-4 border-b border-white/[0.04]">
           {!isCollapsed && (
             <div className="flex items-center gap-2 font-bold text-lg text-white">
              
@@ -89,7 +89,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Mobile Bottom Tab Bar */}
-      <nav className="md:hidden fixed bottom-4 left-4 right-4 h-16 bg-white/[0.05] border border-white/[0.1] backdrop-blur-[30px] rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex items-center justify-around z-50 overflow-hidden">
+      <nav className="md:hidden fixed bottom-4 left-4 right-4 h-16 bg-white/[0.05] border border-white/[0.05] backdrop-blur-[30px] rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex items-center justify-around z-50 overflow-hidden">
         {navItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))
           return (

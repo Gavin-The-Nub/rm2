@@ -144,8 +144,8 @@ export function QRScanner({ onScanSuccess, isScanning }: QRScannerProps) {
 
   if (hasPermission === false || error) {
     return (
-      <Card className="flex flex-col items-center justify-center p-8 border border-accent-warning/20 bg-accent-warning/5 text-center h-[400px] w-full max-w-4xl mx-auto">
-        <AlertCircle className="w-12 h-12 text-accent-warning mb-4" />
+      <Card className="flex flex-col items-center justify-center p-8 border border-accent-danger/20 bg-accent-danger/5 text-center h-[400px] w-full max-w-4xl mx-auto">
+        <AlertCircle className="w-12 h-12 text-accent-danger mb-4" />
         <h3 className="text-xl font-bold text-primary mb-2">Camera Access Required</h3>
         <p className="text-secondary text-sm max-w-sm mb-6">
           {error || "We couldn't access your camera. Please ensure you have granted camera permissions in your browser settings."}

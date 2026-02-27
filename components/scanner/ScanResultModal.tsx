@@ -66,12 +66,12 @@ export function ScanResultModal({ member, status, onClose }: ScanResultProps) {
         }
       case "already_checked_in":
         return {
-          glow: "from-[#FF9F0A]/40 via-[#FF9F0A]/5 to-transparent",
-          icon: <AlertTriangle className="w-12 h-12 text-[#FF9F0A]" />,
+          glow: "from-[#0A84FF]/40 via-[#0A84FF]/5 to-transparent",
+          icon: <AlertTriangle className="w-12 h-12 text-[#0A84FF]" />,
           title: "ALREADY VISITED",
-          ring: "border-[#FF9F0A]/40",
-          accentColor: "#FF9F0A",
-          shadow: "shadow-[0_0_60px_-10px_rgba(255,159,10,0.6)]",
+          ring: "border-[#0A84FF]/40",
+          accentColor: "#0A84FF",
+          shadow: "shadow-[0_0_60px_-10px_rgba(10,132,255,0.6)]",
         }
       case "expired":
         return {
@@ -132,7 +132,7 @@ export function ScanResultModal({ member, status, onClose }: ScanResultProps) {
           <div className="relative mb-8">
              <div className={cn(
                 "absolute inset-0 rounded-full animate-ping opacity-25",
-                status === "success" ? "bg-[#30D158]" : status === "already_checked_in" ? "bg-[#FF9F0A]" : "bg-[#FF453A]"
+                status === "success" ? "bg-[#30D158]" : status === "already_checked_in" ? "bg-[#0A84FF]" : "bg-[#FF453A]"
              )} style={{ animationDuration: '3s' }} />
              <div className="relative z-10 p-5 bg-white/5 rounded-[32px] border border-white/10 backdrop-blur-md">
                 {config.icon}
