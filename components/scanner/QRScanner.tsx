@@ -20,9 +20,16 @@ export function QRScanner({ onScanSuccess, isScanning }: QRScannerProps) {
   useEffect(() => {
     // Only initialize if we're supposed to be scanning and haven't already
     if (!isScanning) {
-      if (scannerRef.current?.isScanning) {
-        scannerRef.current.stop().catch(console.error)
+      const stopScanner = async () => {
+        if (scannerRef.current?.isScanning) {
+          try {
+            await scannerRef.current.stop()
+          } catch (err) {
+            console.warn("Error stopping scanner:", err)
+          }
+        }
       }
+      stopScanner()
       return
     }
 
@@ -50,16 +57,20 @@ export function QRScanner({ onScanSuccess, isScanning }: QRScannerProps) {
               await scannerRef.current.stop()
           }
 
+          if (!mounted) return
+
           await scannerRef.current.start(
             { facingMode: "environment" }, // Prefer back camera on mobile
             {
               fps: 10,
+              aspectRatio: 1.0, // Ensure square viewfinder for better alignment
+              disableFlip: false,
               // Calculate a responsive qrbox side based on screen width
               qrbox: (viewfinderWidth, viewfinderHeight) => {
                 const minEdgePercentage = 0.8; 
                 // Fallback to a fixed size if dimensions are 0 (can happen in some browsers on init)
-                const width = viewfinderWidth || 300;
-                const height = viewfinderHeight || 300;
+                const width = viewfinderWidth || window.innerWidth || 300;
+                const height = viewfinderHeight || window.innerHeight || 300;
                 const minEdgeSize = Math.min(width, height);
                 // Ensure the qrbox is at least 50px to satisfy the library requirement
                 const qrboxSize = Math.max(150, Math.floor(minEdgeSize * minEdgePercentage));
@@ -106,9 +117,16 @@ export function QRScanner({ onScanSuccess, isScanning }: QRScannerProps) {
 
     return () => {
       mounted = false
-      if (scannerRef.current?.isScanning) {
-        scannerRef.current.stop().catch(console.error)
+      const cleanup = async () => {
+        if (scannerRef.current?.isScanning) {
+          try {
+            await scannerRef.current.stop()
+          } catch (err) {
+            console.error("Cleanup error:", err)
+          }
+        }
       }
+      cleanup()
     }
   }, [isScanning, onScanSuccess])
 
@@ -168,6 +186,22 @@ export function QRScanner({ onScanSuccess, isScanning }: QRScannerProps) {
       </div>
 
       <style jsx global>{`
+        #reader video {
+          width: 100% !important;
+          height: 100% !important;
+          object-fit: cover !important;
+          border-radius: 0px !important;
+        }
+        #reader {
+          border: none !important;
+          padding: 0 !important;
+        }
+        #reader__scan_region {
+           background: black !important;
+        }
+        #reader__dashboard {
+           display: none !important; /* Hide the default library UI */
+        }
         @keyframes scan {
           0%, 100% { top: 10%; opacity: 0.5; }
           50% { top: 90%; opacity: 1; }
