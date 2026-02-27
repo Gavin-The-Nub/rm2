@@ -235,31 +235,33 @@ export function MembersTable() {
                   <td className="px-6 py-4 text-right text-secondary">${member.total_paid.toFixed(2)}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button 
-                        variant="secondary" 
-                        className="px-3 py-1.5 h-auto text-[10px] uppercase tracking-wider"
-                        onClick={async () => {
-                          const todayStr = new Date().toISOString().split('T')[0]
-                          const { error } = await supabase
-                            .from('attendance')
-                            .insert({
-                              member_id: member.id,
-                              check_in_date: todayStr
-                            })
-                          
-                          if (error) {
-                            if (error.code === '23505') {
-                              alert("Already checked in today.")
+                      {member.status === 'active' && !isExpired && (
+                        <Button 
+                          variant="secondary" 
+                          className="px-3 py-1.5 h-auto text-[10px] uppercase tracking-wider text-accent-secondary border-accent-secondary/50 hover:bg-accent-secondary/10"
+                          onClick={async () => {
+                            const todayStr = new Date().toISOString().split('T')[0]
+                            const { error } = await supabase
+                              .from('attendance')
+                              .insert({
+                                member_id: member.id,
+                                check_in_date: todayStr
+                              })
+                            
+                            if (error) {
+                              if (error.code === '23505') {
+                                alert("Already checked in today.")
+                              } else {
+                                alert("Check-in failed.")
+                              }
                             } else {
-                              alert("Check-in failed.")
+                              window.location.reload() // Simple refresh to update count
                             }
-                          } else {
-                            window.location.reload() // Simple refresh to update count
-                          }
-                        }}
-                      >
-                        Check-in
-                      </Button>
+                          }}
+                        >
+                          Check-in
+                        </Button>
+                      )}
                       <Link href={`/members/${member.id}`}>
                         <Button variant="secondary" className="px-3 py-1.5 h-auto text-[10px] uppercase tracking-wider">
                           View

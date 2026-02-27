@@ -107,15 +107,15 @@ export default function ScannerPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto h-[calc(100vh-80px)]">
-      <div className="flex items-center justify-between shrink-0">
+    <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto min-h-[calc(100vh-80px)] overflow-y-auto px-4 py-6">
+      <div className="flex items-center justify-between shrink-0 mb-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-primary">QR Scanner</h1>
-          <p className="text-sm text-secondary mt-1 tracking-wide">Validate memberships and track attendance</p>
+          <h1 className="text-3xl font-bold tracking-tight text-white mb-2">QR Scanner</h1>
+          <p className="text-white/50 text-base tracking-wide">Validate memberships and track attendance</p>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center min-h-0 w-full max-w-4xl mx-auto relative px-4">
+      <div className="flex-1 flex flex-col items-center justify-start pt-8 w-full max-w-4xl mx-auto relative">
           <QRScanner 
             onScanSuccess={handleScanSuccess} 
             isScanning={isScanning} 

@@ -120,28 +120,42 @@ function StackedBarChartHover({ data, prefix = "" }: ChartProps) {
   )
 }
 
+
 export function WeeklyAttendanceChart() {
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
   return (
     <Card className="h-[350px] flex flex-col">
       <div className="mb-6">
         <h3 className="text-[13px] font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Weekly Attendance</h3>
       </div>
-      <div className="flex-1 w-full relative -mx-2">
-        <StackedBarChartHover data={mockAttendanceData} />
+      <div className="flex-1 w-full relative -mx-2 min-h-[250px] chart-wrapper">
+        {mounted && <StackedBarChartHover data={mockAttendanceData} />}
       </div>
     </Card>
   )
 }
 
 export function WeeklySalesChart() {
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
   return (
     <Card className="h-[350px] flex flex-col">
       <div className="mb-6">
         <h3 className="text-[13px] font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Weekly Sales</h3>
       </div>
-      <div className="flex-1 w-full relative -mx-2">
-        <StackedBarChartHover data={mockSalesData} prefix="$" />
+      <div className="flex-1 w-full relative -mx-2 min-h-[250px] chart-wrapper">
+        {mounted && <StackedBarChartHover data={mockSalesData} prefix="$" />}
       </div>
     </Card>
   )
 }
+

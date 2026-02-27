@@ -39,8 +39,8 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
         <div className="flex h-16 items-center justify-between px-4 border-b border-white/[0.08]">
           {!isCollapsed && (
             <div className="flex items-center gap-2 font-bold text-lg text-white">
-              <Dumbbell className="h-6 w-6 text-[#0A84FF]" />
-              <span className="tracking-tight">Fitonist</span>
+             
+              <span className="tracking-tight">RM Fitness Gym</span>
             </div>
           )}
           {isCollapsed && (

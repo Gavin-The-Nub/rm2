@@ -62,18 +62,22 @@ export function QRScanner({ onScanSuccess, isScanning }: QRScannerProps) {
           await scannerRef.current.start(
             { facingMode: "environment" }, // Prefer back camera on mobile
             {
-              fps: 10,
-              aspectRatio: 1.0, // Ensure square viewfinder for better alignment
+              fps: 20, // Increased for smoother detection
+              aspectRatio: 1.0,
               disableFlip: false,
-              // Calculate a responsive qrbox side based on screen width
+              videoConstraints: {
+                facingMode: "environment",
+                focusMode: "continuous", // Modern browsers on Android support this
+                // Point of interest for focus can be helpful if supported
+                // @ts-ignore - experimental constraints
+                advanced: [{ focusMode: "continuous" }]
+              },
               qrbox: (viewfinderWidth, viewfinderHeight) => {
-                const minEdgePercentage = 0.8; 
-                // Fallback to a fixed size if dimensions are 0 (can happen in some browsers on init)
                 const width = viewfinderWidth || window.innerWidth || 300;
                 const height = viewfinderHeight || window.innerHeight || 300;
                 const minEdgeSize = Math.min(width, height);
-                // Ensure the qrbox is at least 50px to satisfy the library requirement
-                const qrboxSize = Math.max(150, Math.floor(minEdgeSize * minEdgePercentage));
+                // Slightly larger box for easier alignment
+                const qrboxSize = Math.max(200, Math.floor(minEdgeSize * 0.75));
                 return {
                     width: qrboxSize,
                     height: qrboxSize
@@ -161,26 +165,29 @@ export function QRScanner({ onScanSuccess, isScanning }: QRScannerProps) {
       {/* Scanning Animation / Border Overlay */}
       {!isInitializing && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-20">
-          <div className="w-[70%] h-[70%] border-2 border-accent-primary/50 rounded-2xl relative">
-            {/* Corner Accents */}
-            <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-accent-primary rounded-tl-lg"></div>
-            <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-accent-primary rounded-tr-lg"></div>
-            <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-accent-primary rounded-bl-lg"></div>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-accent-primary rounded-br-lg"></div>
+          <div className="w-[70%] h-[70%] border border-white/5 rounded-[32px] relative overflow-hidden backdrop-blur-[2px]">
+            {/* Corner Accents - Liquid Style */}
+            <div className="absolute top-0 left-0 w-8 h-8 border-t-[3px] border-l-[3px] border-[#0A84FF] rounded-tl-2xl shadow-[0_0_15px_rgba(10,132,255,0.5)]"></div>
+            <div className="absolute top-0 right-0 w-8 h-8 border-t-[3px] border-r-[3px] border-[#0A84FF] rounded-tr-2xl shadow-[0_0_15px_rgba(10,132,255,0.5)]"></div>
+            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-[3px] border-l-[3px] border-[#0A84FF] rounded-bl-2xl shadow-[0_0_15px_rgba(10,132,255,0.5)]"></div>
+            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-[3px] border-r-[3px] border-[#0A84FF] rounded-br-2xl shadow-[0_0_15px_rgba(10,132,255,0.5)]"></div>
             
-            {/* Scanning Line */}
-            <div className="absolute top-0 left-4 right-4 h-[2px] bg-accent-primary/80 shadow-[0_0_15px_rgba(10,132,255,0.8)] animate-[scan_2s_ease-in-out_infinite]"></div>
+            {/* Scanning Line - Liquid Style */}
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#0A84FF] to-transparent shadow-[0_0_20px_#0A84FF] animate-[scan_3s_ease-in-out_infinite]"></div>
+            
+            {/* Ambient Inner Glow */}
+            <div className="absolute inset-0 border border-white/5 rounded-[32px] shadow-[inset_0_0_50px_rgba(10,132,255,0.05)]"></div>
           </div>
         </div>
       )}
 
-      {/* Overlay UI */}
-      <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent flex justify-center z-30 pointer-events-none">
-         <div className="flex items-center gap-2 text-white/90 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full text-sm font-medium border border-white/10 shadow-lg">
+      {/* Overlay UI - Glassmorphic Instructions */}
+      <div className="absolute top-8 left-0 right-0 px-6 flex justify-center z-30 pointer-events-none">
+         <div className="flex items-center gap-3 text-white/90 bg-white/[0.05] backdrop-blur-[24px] px-5 py-2.5 rounded-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.1)] transition-all duration-500">
             {isInitializing ? (
-               <><Loader2 className="w-4 h-4 animate-spin" /> Initializing Camera...</>
+               <><Loader2 className="w-4 h-4 animate-spin text-[#0A84FF]" /> <span className="text-[13px] font-medium tracking-wide">Calibrating Lens...</span></>
             ) : (
-               <><Camera className="w-4 h-4 text-accent-primary" /> Align QR code within frame</>
+               <><Camera className="w-4 h-4 text-[#0A84FF]" /> <span className="text-[13px] font-medium tracking-wide">Position QR Code within frame</span></>
             )}
          </div>
       </div>
