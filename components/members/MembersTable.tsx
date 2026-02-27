@@ -17,6 +17,7 @@ type MemberRow = {
   photo_url: string | null
   membership_type: "1_day" | "weekly" | "monthly"
   status: "active" | "suspended" | "cancelled"
+  qr_code: string
   start_date: string
   end_date: string
   created_at: string
@@ -40,7 +41,7 @@ export function MembersTable() {
       const { data, error } = await supabase
         .from('members')
         .select(`
-          id, name, email, photo_url, membership_type, status, start_date, end_date, created_at, payment_amount,
+          id, name, email, photo_url, membership_type, status, qr_code, start_date, end_date, created_at, payment_amount,
           attendance ( check_in_date ),
           renewals ( payment_amount )
         `)
@@ -76,6 +77,7 @@ export function MembersTable() {
           photo_url: m.photo_url,
           membership_type: m.membership_type,
           status: m.status,
+          qr_code: m.qr_code,
           start_date: m.start_date,
           end_date: m.end_date,
           created_at: m.created_at,
@@ -198,8 +200,13 @@ export function MembersTable() {
                     </Link>
                   </td>
                   <td className="px-6 py-4">
+                    <Badge variant={getStatusColor(member.status, member.end_date)}>
+                      {getDisplayStatus(member.status, member.end_date)}
+                    </Badge>
+                  </td>
+                  <td className="px-6 py-4">
                     <code className="text-[10px] bg-black/30 px-1.5 py-0.5 rounded text-secondary/80 font-mono">
-                      {member.id.length > 10 ? member.id.split('-')[0] + '...' : member.id}
+                      {member.qr_code}
                     </code>
                   </td>
                   <td className="px-6 py-4 text-secondary">{formatMembershipType(member.membership_type)}</td>
