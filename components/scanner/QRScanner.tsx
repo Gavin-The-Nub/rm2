@@ -63,7 +63,7 @@ export function QRScanner({ onScanSuccess, isScanning }: QRScannerProps) {
             { facingMode: "environment" }, // Prefer back camera on mobile
             {
               fps: 20, // Increased for smoother detection
-              aspectRatio: 1.0,
+              aspectRatio: 1.333333, // Standard 4:3 aspect ratio for better camera field-of-view
               disableFlip: false,
               videoConstraints: {
                 facingMode: "environment",
