@@ -56,9 +56,10 @@ export function QRScanner({ onScanSuccess, isScanning }: QRScannerProps) {
               fps: 10,
               // Calculate a responsive qrbox side based on screen width
               qrbox: (viewfinderWidth, viewfinderHeight) => {
-                const minEdgePercentage = 0.70; // 70% of the smallest edge
+                const minEdgePercentage = 0.85; // Increased to 85% for easier scanning
                 const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-                const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+                // Ensure the qrbox is at least 50px to satisfy the library requirement
+                const qrboxSize = Math.max(50, Math.floor(minEdgeSize * minEdgePercentage));
                 return {
                     width: qrboxSize,
                     height: qrboxSize
