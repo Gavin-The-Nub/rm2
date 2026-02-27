@@ -68,7 +68,7 @@ export function RenewalHistoryLog() {
                   </div>
                 </td>
                 <td className="p-4">
-                  <Badge variant={log.type === '1 Day' ? 'neutral' : log.type === 'Weekly' ? 'info' : 'secondary'}>
+                  <Badge variant={log.type === '1 Day' ? 'neutral' : log.type === 'Weekly' ? 'weekly' : 'secondary' as any}>
                     {log.type}
                   </Badge>
                 </td>

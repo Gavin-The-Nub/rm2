@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { Badge } from "@/components/ui/Badge"
 import { format } from "date-fns"
-import { ArrowLeft, User, QrCode, Calendar, Clock, Loader2 } from "lucide-react"
+import { ArrowLeft, User, QrCode, Calendar, Clock, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { QRCodeSVG } from "qrcode.react"
 import { RenewModal } from "./RenewModal"
@@ -42,11 +42,31 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
     setSuspendLoading(false)
   }
 
+  const handleCheckIn = async () => {
+    const todayStr = new Date().toISOString().split('T')[0]
+    const { error } = await supabase
+      .from('attendance')
+      .insert({
+        member_id: member.id,
+        check_in_date: todayStr
+      })
+    
+    if (error) {
+      if (error.code === '23505') {
+        alert("Member already checked in today.")
+      } else {
+        alert("Failed to record attendance.")
+      }
+    } else {
+      onUpdate()
+    }
+  }
+
   const getStatusColor = (status: string, endDate: string) => {
-    if (status === 'suspended') return 'warning'
-    if (status === 'cancelled') return 'danger'
-    if (new Date(endDate) < new Date(new Date().setHours(0,0,0,0))) return 'danger'
-    return 'success'
+    if (status === 'suspended') return 'suspended'
+    if (status === 'cancelled') return 'negative'
+    if (new Date(endDate) < new Date(new Date().setHours(0,0,0,0))) return 'expired'
+    return 'active'
   }
 
   const getDisplayStatus = (status: string, endDate: string) => {
@@ -71,6 +91,15 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
           </Button>
         </Link>
         <div className="flex items-center gap-3">
+          {getDisplayStatus(member.status, member.end_date) === 'Active' && (
+            <Button 
+              variant="secondary" 
+              className="text-accent-secondary border-accent-secondary/50 hover:bg-accent-secondary/10"
+              onClick={handleCheckIn}
+            >
+              Check In
+            </Button>
+          )}
           <Button 
             variant="secondary" 
             className={member.status === 'suspended' ? "text-accent-secondary border-accent-secondary/50 hover:bg-accent-secondary/10" : "text-accent-warning border-accent-warning/50 hover:bg-accent-warning/10"}
@@ -108,7 +137,10 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
             {member.email && <p className="text-secondary text-sm mb-4">{member.email}</p>}
             
             <Badge variant={getStatusColor(member.status, member.end_date) as any} className="mb-6 px-3 py-1">
-              {getDisplayStatus(member.status, member.end_date)}
+              <div className="flex items-center gap-1">
+                {(getDisplayStatus(member.status, member.end_date) === 'Expired' || getDisplayStatus(member.status, member.end_date) === 'Cancelled') && <AlertCircle className="w-3.5 h-3.5" />}
+                {getDisplayStatus(member.status, member.end_date)}
+              </div>
             </Badge>
 
             <div className="grid grid-cols-2 gap-4 w-full border-t border-white/5 pt-6 mt-2">
@@ -200,31 +232,6 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
                     <p className="text-xs text-secondary font-mono bg-black/40 px-2 py-1 rounded inline-block">
                       {member.qr_code}
                     </p>
-                    <Button 
-                      variant="secondary" 
-                      className="h-7 px-2 text-[10px] uppercase tracking-wider"
-                      onClick={async () => {
-                        const todayStr = new Date().toISOString().split('T')[0]
-                        const { error } = await supabase
-                          .from('attendance')
-                          .insert({
-                            member_id: member.id,
-                            check_in_date: todayStr
-                          })
-                        
-                        if (error) {
-                          if (error.code === '23505') {
-                            alert("Member already checked in today.")
-                          } else {
-                            alert("Failed to record attendance.")
-                          }
-                        } else {
-                          onUpdate()
-                        }
-                      }}
-                    >
-                      Quick Check-in
-                    </Button>
                   </div>
                 </div>
               </div>

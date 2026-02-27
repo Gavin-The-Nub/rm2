@@ -70,12 +70,12 @@ export function MemberHistoryTable() {
                   </div>
                 </td>
                 <td>
-                  <Badge variant={member.type === '1 Day' ? 'neutral' : member.type === 'Weekly' ? 'info' : 'secondary'}>
+                  <Badge variant={member.type === '1 Day' ? 'neutral' : member.type === 'Weekly' ? 'weekly' : 'secondary' as any}>
                     {member.type}
                   </Badge>
                 </td>
                 <td>
-                  <Badge variant={member.status === 'Active' ? 'positive' : member.status === 'Suspended' ? 'warning' : 'negative'}>
+                  <Badge variant={member.status === 'Active' ? 'positive' : member.status === 'Suspended' ? 'suspended' : 'negative'}>
                     {member.status}
                   </Badge>
                 </td>

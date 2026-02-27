@@ -68,7 +68,7 @@ export function AttendanceHistoryLog() {
                   </div>
                 </td>
                 <td className="p-4">
-                  <Badge variant={log.type === '1 Day' ? 'neutral' : log.type === 'Weekly' ? 'info' : 'secondary'}>
+                  <Badge variant={log.type === '1 Day' ? 'neutral' : log.type === 'Weekly' ? 'weekly' : 'secondary' as any}>
                     {log.type}
                   </Badge>
                 </td>
@@ -76,7 +76,7 @@ export function AttendanceHistoryLog() {
                   <Badge 
                     variant={
                       log.status === 'Success' ? 'positive' : 
-                      log.status === 'Suspended' || log.status === 'Already Checked In' ? 'warning' : 'negative'
+                      log.status === 'Suspended' || log.status === 'Already Checked In' ? 'suspended' : 'negative'
                     }
                   >
                     {log.status}

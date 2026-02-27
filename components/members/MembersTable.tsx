@@ -6,9 +6,10 @@ import { Card } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
 import { Input } from "@/components/ui/Input"
 import { Button } from "@/components/ui/Button"
-import { Search, Filter, Plus, User, MoreVertical } from "lucide-react"
+import { Search, Filter, Plus, User, AlertCircle, MoreVertical } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
+import { cn } from "@/lib/utils"
 
 type MemberRow = {
   id: string
@@ -109,15 +110,15 @@ export function MembersTable() {
   }
 
   const getStatusColor = (status: string, endDate: string) => {
-    if (status === 'suspended') return 'warning'
-    if (status === 'cancelled') return 'danger'
+    if (status === 'suspended') return 'suspended'
+    if (status === 'cancelled') return 'negative'
     
     // Check if expired
     if (new Date(endDate) < new Date(new Date().setHours(0,0,0,0))) {
-      return 'danger'
+      return 'expired'
     }
     
-    return 'success'
+    return 'active'
   }
 
   const getDisplayStatus = (status: string, endDate: string) => {
@@ -182,11 +183,22 @@ export function MembersTable() {
                 <td colSpan={7} className="px-6 py-8 text-center text-muted">No members found.</td>
               </tr>
             ) : (
-              filteredMembers.map((member) => (
-                <tr key={member.id} className="hover:bg-card-hover transition-colors group">
+              filteredMembers.map((member) => {
+                const isExpired = new Date(member.end_date) < new Date(new Date().setHours(0,0,0,0))
+                const isCancelled = member.status === 'cancelled'
+                const isHighlight = isExpired || isCancelled
+
+                return (
+                  <tr 
+                    key={member.id} 
+                    className={cn(
+                      "hover:bg-card-hover transition-colors group",
+                      isHighlight && "bg-red-500/[0.03] text-red-100/80"
+                    )}
+                  >
                   <td className="px-6 py-4">
                     <Link href={`/members/${member.id}`} className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-input flexItems-center justify-center overflow-hidden shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-input flex items-center justify-center overflow-hidden shrink-0">
                         {member.photo_url ? (
                           <img src={member.photo_url} alt={member.name} className="w-full h-full object-cover" />
                         ) : (
@@ -201,7 +213,10 @@ export function MembersTable() {
                   </td>
                   <td className="px-6 py-4">
                     <Badge variant={getStatusColor(member.status, member.end_date)}>
-                      {getDisplayStatus(member.status, member.end_date)}
+                      <div className="flex items-center gap-1">
+                        {isExpired && <AlertCircle className="w-3 h-3" />}
+                        {getDisplayStatus(member.status, member.end_date)}
+                      </div>
                     </Badge>
                   </td>
                   <td className="px-6 py-4">
@@ -210,7 +225,12 @@ export function MembersTable() {
                     </code>
                   </td>
                   <td className="px-6 py-4 text-secondary">{formatMembershipType(member.membership_type)}</td>
-                  <td className="px-6 py-4 text-secondary">{format(new Date(member.end_date), 'MMM d, yyyy')}</td>
+                  <td className={cn(
+                    "px-6 py-4 text-secondary",
+                    isExpired && "text-red-400 font-medium"
+                  )}>
+                    {format(new Date(member.end_date), 'MMM d, yyyy')}
+                  </td>
                   <td className="px-6 py-4 text-right font-medium">{member.total_visits}</td>
                   <td className="px-6 py-4 text-right text-secondary">${member.total_paid.toFixed(2)}</td>
                   <td className="px-6 py-4 text-right">
@@ -247,8 +267,9 @@ export function MembersTable() {
                       </Link>
                     </div>
                   </td>
-                </tr>
-              ))
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>
