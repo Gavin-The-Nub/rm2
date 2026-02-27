@@ -162,10 +162,11 @@ export function MembersTable() {
             <tr>
               <th className="px-6 py-4">Member</th>
               <th className="px-6 py-4">Status</th>
+              <th className="px-6 py-4">Scan ID</th>
               <th className="px-6 py-4">Type</th>
               <th className="px-6 py-4">End Date</th>
-              <th className="px-6 py-4 text-right">Total Visits</th>
-              <th className="px-6 py-4 text-right">Total Paid</th>
+              <th className="px-6 py-4 text-right">Visits</th>
+              <th className="px-6 py-4 text-right">Paid</th>
               <th className="px-6 py-4"></th>
             </tr>
           </thead>
@@ -197,20 +198,47 @@ export function MembersTable() {
                     </Link>
                   </td>
                   <td className="px-6 py-4">
-                    <Badge variant={getStatusColor(member.status, member.end_date) as any}>
-                      {getDisplayStatus(member.status, member.end_date)}
-                    </Badge>
+                    <code className="text-[10px] bg-black/30 px-1.5 py-0.5 rounded text-secondary/80 font-mono">
+                      {member.id.length > 10 ? member.id.split('-')[0] + '...' : member.id}
+                    </code>
                   </td>
                   <td className="px-6 py-4 text-secondary">{formatMembershipType(member.membership_type)}</td>
                   <td className="px-6 py-4 text-secondary">{format(new Date(member.end_date), 'MMM d, yyyy')}</td>
                   <td className="px-6 py-4 text-right font-medium">{member.total_visits}</td>
                   <td className="px-6 py-4 text-right text-secondary">${member.total_paid.toFixed(2)}</td>
                   <td className="px-6 py-4 text-right">
-                    <Link href={`/members/${member.id}`}>
-                      <Button variant="secondary" className="px-3 py-1.5 h-auto text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                        View
+                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button 
+                        variant="secondary" 
+                        className="px-3 py-1.5 h-auto text-[10px] uppercase tracking-wider"
+                        onClick={async () => {
+                          const todayStr = new Date().toISOString().split('T')[0]
+                          const { error } = await supabase
+                            .from('attendance')
+                            .insert({
+                              member_id: member.id,
+                              check_in_date: todayStr
+                            })
+                          
+                          if (error) {
+                            if (error.code === '23505') {
+                              alert("Already checked in today.")
+                            } else {
+                              alert("Check-in failed.")
+                            }
+                          } else {
+                            window.location.reload() // Simple refresh to update count
+                          }
+                        }}
+                      >
+                        Check-in
                       </Button>
-                    </Link>
+                      <Link href={`/members/${member.id}`}>
+                        <Button variant="secondary" className="px-3 py-1.5 h-auto text-[10px] uppercase tracking-wider">
+                          View
+                        </Button>
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))

@@ -41,8 +41,12 @@ export function AddMemberForm() {
         endDate.setDate(startDate.getDate() + 30)
       }
 
-      // Generate immutable QR code value (using a random UUID)
-      const qrCode = crypto.randomUUID()
+      // Generate shorter, human-friendly Scan ID (e.g. RM1A2B)
+      const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+      let qrCode = 'RM'
+      for (let i = 0; i < 4; i++) {
+        qrCode += chars.charAt(Math.floor(Math.random() * chars.length))
+      }
 
       // Insert member
       const { data, error } = await supabase

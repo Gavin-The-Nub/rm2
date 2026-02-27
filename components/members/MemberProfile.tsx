@@ -192,13 +192,40 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
 
               <div className="flex items-start gap-3">
                  <div className="p-2.5 rounded-xl bg-input border border-white/5 shrink-0">
-                  <User className="w-5 h-5 text-secondary" />
+                  <Clock className="w-5 h-5 text-secondary" />
                 </div>
-                <div>
-                  <p className="text-xs text-muted uppercase tracking-wider mb-1">Member ID</p>
-                  <p className="text-xs text-secondary font-mono bg-black/40 px-2 py-1 rounded inline-block">
-                    {member.id.split('-')[0]}...
-                  </p>
+                <div className="flex-1 shrink-0">
+                  <p className="text-xs text-muted uppercase tracking-wider mb-1">Scan ID</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-secondary font-mono bg-black/40 px-2 py-1 rounded inline-block">
+                      {member.qr_code}
+                    </p>
+                    <Button 
+                      variant="secondary" 
+                      className="h-7 px-2 text-[10px] uppercase tracking-wider"
+                      onClick={async () => {
+                        const todayStr = new Date().toISOString().split('T')[0]
+                        const { error } = await supabase
+                          .from('attendance')
+                          .insert({
+                            member_id: member.id,
+                            check_in_date: todayStr
+                          })
+                        
+                        if (error) {
+                          if (error.code === '23505') {
+                            alert("Member already checked in today.")
+                          } else {
+                            alert("Failed to record attendance.")
+                          }
+                        } else {
+                          onUpdate()
+                        }
+                      }}
+                    >
+                      Quick Check-in
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

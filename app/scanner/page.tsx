@@ -126,7 +126,7 @@ export default function ScannerPage() {
               <h3 className="text-sm font-semibold text-secondary uppercase tracking-wider mb-2">Manual Input</h3>
               <form onSubmit={handleManualSubmit} className="flex gap-2 max-w-md mx-auto">
                 <Input 
-                  placeholder="Enter Member ID (QR Code)" 
+                  placeholder="Enter Scan ID (e.g. RM1234)" 
                   value={manualId}
                   onChange={(e) => setManualId(e.target.value)}
                   disabled={!isScanning || isSubmitting}
@@ -145,7 +145,7 @@ export default function ScannerPage() {
             <Card className="bg-card/30 border-white/5 w-full text-center p-4">
               <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">Instructions</h3>
               <p className="text-xs text-muted/80">
-                Align the member's QR code within the frame above or enter the ID manually if the camera is unavailable.
+                Align the member's QR code within the frame above or enter the Scan ID manually if the camera is unavailable.
               </p>
             </Card>
           </div>
