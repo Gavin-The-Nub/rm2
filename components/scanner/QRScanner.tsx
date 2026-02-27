@@ -75,9 +75,8 @@ export function QRScanner({ onScanSuccess, isScanning }: QRScannerProps) {
               qrbox: (viewfinderWidth, viewfinderHeight) => {
                 const width = viewfinderWidth || window.innerWidth || 300;
                 const height = viewfinderHeight || window.innerHeight || 300;
-                const minEdgeSize = Math.min(width, height);
-                // Slightly larger box for easier alignment
-                const qrboxSize = Math.max(200, Math.floor(minEdgeSize * 0.75));
+                // Fixed size for better consistency and focused detection
+                const qrboxSize = 250; 
                 return {
                     width: qrboxSize,
                     height: qrboxSize
@@ -136,7 +135,7 @@ export function QRScanner({ onScanSuccess, isScanning }: QRScannerProps) {
 
   if (!isScanning) {
     return (
-      <Card className="flex flex-col items-center justify-center p-8 border border-white/5 p-0 bg-card text-center min-h-[500px] w-full max-w-4xl mx-auto">
+      <Card className="flex flex-col items-center justify-center p-8 border border-white/5 p-0 bg-card text-center h-[400px] w-full max-w-4xl mx-auto">
         <Loader2 className="w-8 h-8 text-accent-primary animate-spin mb-4" />
         <p className="text-primary font-medium">Processing Scan...</p>
       </Card>
@@ -145,7 +144,7 @@ export function QRScanner({ onScanSuccess, isScanning }: QRScannerProps) {
 
   if (hasPermission === false || error) {
     return (
-      <Card className="flex flex-col items-center justify-center p-8 border border-accent-warning/20 bg-accent-warning/5 text-center min-h-[500px] w-full max-w-4xl mx-auto">
+      <Card className="flex flex-col items-center justify-center p-8 border border-accent-warning/20 bg-accent-warning/5 text-center h-[400px] w-full max-w-4xl mx-auto">
         <AlertCircle className="w-12 h-12 text-accent-warning mb-4" />
         <h3 className="text-xl font-bold text-primary mb-2">Camera Access Required</h3>
         <p className="text-secondary text-sm max-w-sm mb-6">
@@ -159,8 +158,8 @@ export function QRScanner({ onScanSuccess, isScanning }: QRScannerProps) {
   }
 
   return (
-    <Card className="w-full overflow-hidden border border-white/5 p-0 bg-black flex flex-col items-center relative min-h-[500px]">
-      <div id="reader" className="w-full h-full min-h-[500px]"></div>
+    <Card className="w-full overflow-hidden border border-white/5 p-0 bg-black flex flex-col items-center relative h-[400px]">
+      <div id="reader" className="w-full h-full min-h-[400px]"></div>
       
       {/* Scanning Animation / Border Overlay */}
       {!isInitializing && (
