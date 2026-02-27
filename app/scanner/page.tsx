@@ -115,7 +115,7 @@ export default function ScannerPage() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center min-h-0 w-full max-w-2xl mx-auto relative px-4">
+      <div className="flex-1 flex flex-col items-center justify-center min-h-0 w-full max-w-4xl mx-auto relative px-4">
           <QRScanner 
             onScanSuccess={handleScanSuccess} 
             isScanning={isScanning} 
