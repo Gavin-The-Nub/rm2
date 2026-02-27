@@ -6,7 +6,7 @@ export const supabase = {
   from(table: string) {
     let filters: any = {};
     let orderBy: { column: string; ascending: boolean } | null = null;
-    let limitCount: number | null = null;
+    let isSingle = false;
 
     return {
       select(query: string = '*') {
@@ -24,6 +24,10 @@ export const supabase = {
       },
       limit(count: number) {
         limitCount = count;
+        return this;
+      },
+      single() {
+        isSingle = true;
         return this;
       },
       async then(resolve: any) {
@@ -52,6 +56,11 @@ export const supabase = {
              attendance: localDb.select('attendance', { member_id: member.id }).data,
              renewals: localDb.select('renewals', { member_id: member.id }).data,
            }));
+        }
+
+        // Handle single
+        if (isSingle && data) {
+          data = data.length > 0 ? data[0] : null;
         }
 
         return resolve({ data, error });
