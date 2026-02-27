@@ -7,6 +7,7 @@ export const supabase = {
     let filters: any = {};
     let orderBy: { column: string; ascending: boolean } | null = null;
     let isSingle = false;
+    let limitCount: number | null = null;
 
     return {
       select(query: string = '*') {
