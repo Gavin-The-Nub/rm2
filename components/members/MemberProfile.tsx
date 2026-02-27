@@ -150,7 +150,7 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
               </div>
               <div className="flex flex-col">
                 <span className="text-xs text-muted uppercase tracking-wider mb-1">Total Paid</span>
-                <span className="text-xl font-semibold text-primary">${totalPaid.toFixed(2)}</span>
+                <span className="text-xl font-semibold text-primary">₱{totalPaid.toFixed(2)}</span>
               </div>
             </div>
           </Card>

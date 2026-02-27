@@ -153,7 +153,7 @@ export function WeeklySalesChart() {
         <h3 className="text-[13px] font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Weekly Sales</h3>
       </div>
       <div className="flex-1 w-full relative -mx-2 min-h-[250px] chart-wrapper">
-        {mounted && <StackedBarChartHover data={mockSalesData} prefix="$" />}
+        {mounted && <StackedBarChartHover data={mockSalesData} prefix="₱" />}
       </div>
     </Card>
   )

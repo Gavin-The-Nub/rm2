@@ -7,11 +7,11 @@ import { Input } from "@/components/ui/Input"
 import { Search, Filter, Download } from "lucide-react"
 
 const mockMembers = [
-  { id: 1, name: "John Santos", type: "Monthly", status: "Active", start: "Jan 1, 2026", end: "Jan 31, 2026", visits: 14, lastSeen: "Today, 8:45 AM", paid: "$45.00", renewals: 2, joined: "Nov 15, 2025" },
-  { id: 2, name: "Maria Garcia", type: "Weekly", status: "Active", start: "Feb 20, 2026", end: "Feb 27, 2026", visits: 4, lastSeen: "Yesterday", paid: "$15.00", renewals: 0, joined: "Feb 20, 2026" },
-  { id: 3, name: "Alex Chen", type: "1 Day", status: "Expired", start: "Feb 14, 2026", end: "Feb 14, 2026", visits: 1, lastSeen: "Feb 14, 2026", paid: "$5.00", renewals: 0, joined: "Feb 14, 2026" },
-  { id: 4, name: "Sarah Jenkins", type: "Monthly", status: "Suspended", start: "Jan 15, 2026", end: "Feb 15, 2026", visits: 22, lastSeen: "Feb 10, 2026", paid: "$90.00", renewals: 1, joined: "Dec 15, 2025" },
-  { id: 5, name: "David Kim", type: "Monthly", status: "Active", start: "Feb 1, 2026", end: "Mar 1, 2026", visits: 18, lastSeen: "Today, 6:30 AM", paid: "$45.00", renewals: 0, joined: "Feb 1, 2026" },
+  { id: 1, name: "John Santos", type: "Monthly", status: "Active", start: "Jan 1, 2026", end: "Jan 31, 2026", visits: 14, lastSeen: "Today, 8:45 AM", paid: "₱45.00", renewals: 2, joined: "Nov 15, 2025" },
+  { id: 2, name: "Maria Garcia", type: "Weekly", status: "Active", start: "Feb 20, 2026", end: "Feb 27, 2026", visits: 4, lastSeen: "Yesterday", paid: "₱15.00", renewals: 0, joined: "Feb 20, 2026" },
+  { id: 3, name: "Alex Chen", type: "1 Day", status: "Expired", start: "Feb 14, 2026", end: "Feb 14, 2026", visits: 1, lastSeen: "Feb 14, 2026", paid: "₱5.00", renewals: 0, joined: "Feb 14, 2026" },
+  { id: 4, name: "Sarah Jenkins", type: "Monthly", status: "Suspended", start: "Jan 15, 2026", end: "Feb 15, 2026", visits: 22, lastSeen: "Feb 10, 2026", paid: "₱90.00", renewals: 1, joined: "Dec 15, 2025" },
+  { id: 5, name: "David Kim", type: "Monthly", status: "Active", start: "Feb 1, 2026", end: "Mar 1, 2026", visits: 18, lastSeen: "Today, 6:30 AM", paid: "₱45.00", renewals: 0, joined: "Feb 1, 2026" },
 ]
 
 export function MemberHistoryTable() {

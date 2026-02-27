@@ -61,11 +61,11 @@ export function RevenueAnalytics() {
     <div className="flex flex-col gap-6">
       {/* Summary Row */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <StatCard title="Total Revenue" value="$45,250" delta={12.5} />
-        <StatCard title="New Member Revenue" value="$28,400" delta={8.2} />
-        <StatCard title="Renewal Revenue" value="$16,850" delta={18.4} />
-        <StatCard title="Avg Rev / Member" value="$112" delta={-2.1} />
-        <StatCard title="Highest Rev Day" value="$4,250" deltaLabel="Friday" />
+        <StatCard title="Total Revenue" value="₱45,250" delta={12.5} />
+        <StatCard title="New Member Revenue" value="₱28,400" delta={8.2} />
+        <StatCard title="Renewal Revenue" value="₱16,850" delta={18.4} />
+        <StatCard title="Avg Rev / Member" value="₱112" delta={-2.1} />
+        <StatCard title="Highest Rev Day" value="₱4,250" deltaLabel="Friday" />
       </div>
 
       {/* Charts Row 1 */}
@@ -82,7 +82,7 @@ export function RevenueAnalytics() {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={mockRevenueOverTime} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dx={-10} tickFormatter={(val) => `$${val}`} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dx={-10} tickFormatter={(val) => `₱${val}`} />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
                 <Line type="monotone" dataKey="newMembers" name="New Members" stroke="#3B82F6" strokeWidth={3} dot={false} activeDot={{ r: 6, strokeWidth: 0, fill: '#3B82F6' }} />
                 <Line type="monotone" dataKey="renewals" name="Renewals" stroke="#10B981" strokeWidth={3} dot={false} activeDot={{ r: 6, strokeWidth: 0, fill: '#10B981' }} />
@@ -120,7 +120,7 @@ export function RevenueAnalytics() {
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-4">
               <span className="text-sm text-gray-400">Total</span>
-              <span className="text-xl font-bold text-white">$13,500</span>
+              <span className="text-xl font-bold text-white">₱13,500</span>
             </div>
             
             <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-4">
@@ -149,7 +149,7 @@ export function RevenueAnalytics() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={mockMonthlyComparison} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dx={-10} tickFormatter={(val) => `$${val}`} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dx={-10} tickFormatter={(val) => `₱${val}`} />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
                 <Bar dataKey="current" name="Current Month" fill="#3B82F6" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="previous" name="Previous Month" fill="#1E1E2E" stroke="rgba(255,255,255,0.2)" radius={[4, 4, 0, 0]} />

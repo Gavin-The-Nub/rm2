@@ -146,7 +146,7 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
           </div>
 
           <div>
-             <label className="text-xs font-semibold text-secondary uppercase tracking-wider block mb-2">Payment Amount ($)</label>
+             <label className="text-xs font-semibold text-secondary uppercase tracking-wider block mb-2">Payment Amount (₱)</label>
              <Input 
                 type="number" 
                 step="0.01"

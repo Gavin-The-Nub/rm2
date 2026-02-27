@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/Input"
 import { Search, Filter, Download } from "lucide-react"
 
 const mockRenewals = [
-  { id: 201, date: "Today, 9:00 AM", name: "John Santos", type: "Monthly", prevEnd: "Dec 31, 2025", newEnd: "Jan 31, 2026", amount: "$45.00" },
-  { id: 202, date: "Yesterday, 2:30 PM", name: "Emma Wilson", type: "Monthly", prevEnd: "Feb 15, 2026", newEnd: "Mar 15, 2026", amount: "$45.00" },
-  { id: 203, date: "Feb 24, 2026, 11:15 AM", name: "Luke Harris", type: "Weekly", prevEnd: "Feb 20, 2026", newEnd: "Feb 27, 2026", amount: "$15.00" },
-  { id: 204, date: "Feb 22, 2026, 4:00 PM", name: "Oliver Brown", type: "Monthly", prevEnd: "Feb 1, 2026", newEnd: "Mar 1, 2026", amount: "$45.00" },
+  { id: 201, date: "Today, 9:00 AM", name: "John Santos", type: "Monthly", prevEnd: "Dec 31, 2025", newEnd: "Jan 31, 2026", amount: "₱45.00" },
+  { id: 202, date: "Yesterday, 2:30 PM", name: "Emma Wilson", type: "Monthly", prevEnd: "Feb 15, 2026", newEnd: "Mar 15, 2026", amount: "₱45.00" },
+  { id: 203, date: "Feb 24, 2026, 11:15 AM", name: "Luke Harris", type: "Weekly", prevEnd: "Feb 20, 2026", newEnd: "Feb 27, 2026", amount: "₱15.00" },
+  { id: 204, date: "Feb 22, 2026, 4:00 PM", name: "Oliver Brown", type: "Monthly", prevEnd: "Feb 1, 2026", newEnd: "Mar 1, 2026", amount: "₱45.00" },
 ]
 
 export function RenewalHistoryLog() {
