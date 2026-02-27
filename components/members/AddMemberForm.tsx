@@ -177,7 +177,7 @@ export function AddMemberForm() {
             </div>
             
             <div>
-              <label className="text-xs font-semibold text-secondary uppercase tracking-wider mb-2 block">Payment Amount ($) <span className="text-accent-danger">*</span></label>
+              <label className="text-xs font-semibold text-secondary uppercase tracking-wider mb-2 block">Payment Amount (₱) <span className="text-accent-danger">*</span></label>
               <Input 
                 type="number" 
                 step="0.01"

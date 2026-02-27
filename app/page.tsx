@@ -37,13 +37,13 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard 
           title="Today's Revenue" 
-          value="$1,250" 
+          value="₱1,250" 
           className="min-h-[160px]"
           chart={<MiniChart data={[200, 300, 250, 400, 350, 500, 600]} color="#10B981" />}
         />
         <StatCard 
           title="Monthly Revenue" 
-          value="$45,020" 
+          value="₱45,020" 
           delta={14.6} 
           className="min-h-[160px]"
           chart={<MiniChart data={[5000, 10000, 15000, 12000, 18000, 22000, 30000]} color="#3B82F6" />}
