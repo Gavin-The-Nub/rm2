@@ -1,24 +1,24 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg-base: #0A0A0F;
-  --color-bg-card: #12121A;
-  --color-bg-card-hover: #1A1A26;
-  --color-bg-input: #1E1E2E;
+  --color-bg-base: #000000;
+  --color-bg-card: rgba(30, 30, 30, 0.4);
+  --color-bg-card-hover: rgba(45, 45, 45, 0.5);
+  --color-bg-input: rgba(255, 255, 255, 0.08);
 
-  --color-accent-primary: #3B82F6;
-  --color-accent-secondary: #10B981;
-  --color-accent-warning: #F59E0B;
-  --color-accent-danger: #EF4444;
+  --color-accent-primary: #0A84FF;   /* iOS Blue */
+  --color-accent-secondary: #30D158; /* iOS Green */
+  --color-accent-warning: #FF9F0A;   /* iOS Orange */
+  --color-accent-danger: #FF453A;    /* iOS Red */
 
-  --color-text-primary: #F9FAFB;
-  --color-text-secondary: #9CA3AF;
-  --color-text-muted: #4B5563;
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: rgba(235, 235, 245, 0.6); /* Secondary Label */
+  --color-text-muted: rgba(235, 235, 245, 0.3);     /* Tertiary Label */
 
-  --color-chart-1: #3B82F6;
-  --color-chart-2: #10B981;
-  --color-chart-3: #F59E0B;
-  --color-chart-4: #8B5CF6;
+  --color-chart-1: #0A84FF;
+  --color-chart-2: #30D158;
+  --color-chart-3: #FF9F0A;
+  --color-chart-4: #BF5AF2; /* iOS Purple */
 }
 
 body {
@@ -26,18 +26,38 @@ body {
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  
+  /* Liquid Morphism Ambient Glows */
+  background-image: 
+    radial-gradient(circle at 20% 0%, rgba(10, 132, 255, 0.15), transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(191, 90, 242, 0.15), transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(48, 209, 88, 0.05), transparent 60%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
+/* Liquid Glass Cards */
 .card {
-  background-color: var(--color-bg-card);
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--color-bg-card);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border-radius: 28px; /* Slightly rounder for iOS */
+  /* Intense inner stroke typical of iOS */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.15);
   padding: 24px;
-  transition: transform 0.2s ease-out;
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-2px) scale(1.01);
+  background: var(--color-bg-card-hover);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.25);
 }
 
 .card .chart-wrapper {
@@ -74,7 +94,7 @@ tbody tr {
 }
 
 tbody tr:hover {
-  background-color: var(--color-bg-card-hover);
+  background-color: var(--color-bg-input);
 }
 
 .member-cell {

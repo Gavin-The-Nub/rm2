@@ -9,31 +9,29 @@ export function Badge({ className, variant = "neutral", ...props }: BadgeProps) 
   const getVariantClasses = () => {
     switch (variant) {
       case "active":
-        return "bg-[#10B981]/15 text-[#10B981]"
+      case "positive":
+        return "bg-[#30D158]/20 text-[#30D158] border-[#30D158]/20 shadow-[0_0_12px_rgba(48,209,88,0.2)]"
       case "expired":
-        return "bg-[#EF4444]/15 text-[#EF4444]"
+      case "negative":
+        return "bg-[#FF453A]/20 text-[#FF453A] border-[#FF453A]/20 shadow-[0_0_12px_rgba(255,69,58,0.2)]"
       case "suspended":
-        return "bg-[#F59E0B]/15 text-[#F59E0B]"
+        return "bg-[#FF9F0A]/20 text-[#FF9F0A] border-[#FF9F0A]/20 shadow-[0_0_12px_rgba(255,159,10,0.2)]"
       case "1day":
       case "neutral":
-        return "bg-[#9CA3AF]/15 text-[#9CA3AF]"
+        return "bg-white/10 text-white/70 border-white/10"
       case "weekly":
-        return "bg-[#3B82F6]/15 text-[#3B82F6]"
+        return "bg-[#0A84FF]/20 text-[#0A84FF] border-[#0A84FF]/20 shadow-[0_0_12px_rgba(10,132,255,0.2)]"
       case "monthly":
-        return "bg-[#8B5CF6]/15 text-[#8B5CF6]"
-      case "positive":
-        return "bg-[#10B981] text-white" // Solid variants for stat badges if needed
-      case "negative":
-        return "bg-[#EF4444] text-white"
+        return "bg-[#BF5AF2]/20 text-[#BF5AF2] border-[#BF5AF2]/20 shadow-[0_0_12px_rgba(191,90,242,0.2)]"
       default:
-        return "bg-[#9CA3AF]/15 text-[#9CA3AF]"
+        return "bg-white/10 text-white/70 border-white/10"
     }
   }
 
   return (
     <div
       className={cn(
-        "inline-flex items-center rounded-full px-[10px] py-[3px] text-[11px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2",
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold backdrop-blur-md transition-all focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2",
         getVariantClasses(),
         className
       )}

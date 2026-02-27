@@ -24,10 +24,6 @@ export function StatCard({ title, value, delta, deltaLabel, className, chart }: 
         <h3 className="text-[13px] font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
           {title}
         </h3>
-        {/* Inline filter mock */}
-        <div className="flex gap-2">
-          <button className="px-2 py-1 rounded-full text-xs bg-white text-black font-medium">Week</button>
-        </div>
       </div>
 
       <div className="z-10 mt-auto">

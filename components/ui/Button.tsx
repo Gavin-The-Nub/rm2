@@ -13,15 +13,15 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const getVariantClasses = () => {
       switch (variant) {
         case "default":
-          return "bg-[#3B82F6] text-white hover:opacity-80"
+          return "bg-[#0A84FF] text-white shadow-[0_4px_14px_rgba(10,132,255,0.4)] hover:brightness-110"
         case "secondary":
-          return "bg-[#1E1E2E] text-white hover:opacity-80"
+          return "bg-white/10 text-white backdrop-blur-md border border-white/10 shadow-[0_4px_14px_rgba(0,0,0,0.1)] hover:bg-white/15"
         case "danger":
-          return "bg-[#EF4444] text-white hover:opacity-80"
+          return "bg-[#FF453A] text-white shadow-[0_4px_14px_rgba(255,69,58,0.4)] hover:brightness-110"
         case "ghost":
-          return "bg-transparent text-[#9CA3AF] hover:bg-[#1E1E2E] hover:text-white"
+          return "bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
         default:
-          return "bg-[#3B82F6] text-white hover:opacity-80"
+          return "bg-[#0A84FF] text-white shadow-[0_4px_14px_rgba(10,132,255,0.4)] hover:brightness-110"
       }
     }
 
