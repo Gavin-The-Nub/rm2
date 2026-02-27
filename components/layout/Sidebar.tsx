@@ -56,7 +56,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 
         <nav className="flex-1 py-4 flex flex-col gap-1 px-2">
           {navItems.map((item) => {
-            const isActive = pathname === item.href
+            const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))
             return (
               <Link
                 key={item.href}
@@ -91,7 +91,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
       {/* Mobile Bottom Tab Bar */}
       <nav className="md:hidden fixed bottom-4 left-4 right-4 h-16 bg-white/[0.05] border border-white/[0.1] backdrop-blur-[30px] rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex items-center justify-around z-50 overflow-hidden">
         {navItems.map((item) => {
-          const isActive = pathname === item.href
+          const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))
           return (
             <Link
               key={item.href}
