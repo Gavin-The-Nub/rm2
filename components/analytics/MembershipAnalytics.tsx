@@ -1,157 +1,175 @@
-"use client"
-
 import React from "react"
 import { StatCard } from "@/components/dashboard/StatCard"
-import { Card } from "@/components/ui/Card"
-import { 
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell
-} from "recharts"
+import { createClient } from "@supabase/supabase-js"
+import MembershipCharts from "@/components/analytics/MembershipCharts"
+import { getRangeDates } from "@/utils/date-filters"
 
-const mockNewMembers = [
-  { date: 'Mon', value: 12 },
-  { date: 'Tue', value: 18 },
-  { date: 'Wed', value: 15 },
-  { date: 'Thu', value: 25 },
-  { date: 'Fri', value: 30 },
-  { date: 'Sat', value: 45 },
-  { date: 'Sun', value: 35 },
-]
+async function getMembershipData(range: string) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
 
-const mockMembershipTypeDist = [
-  { name: '1 Day', value: 250, color: '#9CA3AF' },
-  { name: 'Weekly', value: 450, color: '#3B82F6' },
-  { name: 'Monthly', value: 1200, color: '#8B5CF6' },
-]
+  const now = new Date()
+  const { startDate, endDate } = getRangeDates(range)
 
-const mockStatusBreakdown = [
-  { week: 'W1', Active: 1800, Expired: 120, Suspended: 10 },
-  { week: 'W2', Active: 1850, Expired: 150, Suspended: 15 },
-  { week: 'W3', Active: 1900, Expired: 130, Suspended: 12 },
-  { week: 'W4', Active: 1950, Expired: 100, Suspended: 8 },
-]
+  const rangeMs = now.getTime() - new Date(startDate).getTime()
+  const prevEnd   = new Date(new Date(startDate).getTime() - 1).toISOString().split("T")[0]
+  const prevStart = new Date(new Date(startDate).getTime() - rangeMs - 1).toISOString().split("T")[0]
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-[#1E1E2E] border border-white/10 p-3 rounded-lg shadow-xl text-sm">
-        <p className="font-semibold text-white mb-2">{label}</p>
-        {payload.map((entry: any, index: number) => (
-          <div key={index} className="flex items-center gap-3 mb-1">
-            <div className="flex items-center gap-2">
-              <div 
-                className="w-2 h-2 rounded-full" 
-                style={{ backgroundColor: entry.color }}
-              />
-              <span className="text-gray-400 capitalize">{entry.name}</span>
-            </div>
-            <span className="text-white font-medium ml-auto">
-              {entry.value}
-            </span>
-          </div>
-        ))}
-      </div>
-    )
+  // All members (for status breakdown & type distribution)
+  const { data: allMembers } = await supabase
+    .from("members")
+    .select("id, status, membership_type, created_at")
+
+  // New members this period
+  const { data: newThisPeriod } = await supabase
+    .from("members")
+    .select("id, membership_type, created_at")
+    .gte("created_at", startDate + "T00:00:00")
+    .lte("created_at", endDate + "T23:59:59")
+
+  // New members prev period
+  const { data: newPrevPeriod } = await supabase
+    .from("members")
+    .select("id, created_at")
+    .gte("created_at", prevStart + "T00:00:00")
+    .lte("created_at", prevEnd + "T23:59:59")
+
+  // Renewals this period
+  const { data: renewalsThisPeriod } = await supabase
+    .from("renewals")
+    .select("id, member_id, created_at")
+    .gte("created_at", startDate + "T00:00:00")
+    .lte("created_at", endDate + "T23:59:59")
+
+  // Renewals prev period
+  const { data: renewalsPrevPeriod } = await supabase
+    .from("renewals")
+    .select("id, created_at")
+    .gte("created_at", prevStart + "T00:00:00")
+    .lte("created_at", prevEnd + "T23:59:59")
+
+  // --- Summary stats ---
+  const newMembersCount  = newThisPeriod?.length ?? 0
+  const renewalsCount    = renewalsThisPeriod?.length ?? 0
+  const prevNewCount     = newPrevPeriod?.length ?? 0
+  const prevRenewalsCount = renewalsPrevPeriod?.length ?? 0
+
+  const newDelta     = prevNewCount > 0 ? ((newMembersCount - prevNewCount) / prevNewCount) * 100 : 0
+  const renewalDelta = prevRenewalsCount > 0 ? ((renewalsCount - prevRenewalsCount) / prevRenewalsCount) * 100 : 0
+
+  const churnedCount = (allMembers || []).filter(
+    (m) => (m.status === "expired" || m.status === "cancelled") &&
+      m.created_at >= startDate + "T00:00:00" &&
+      m.created_at <= endDate + "T23:59:59"
+  ).length
+
+  const netGrowth  = newMembersCount - churnedCount
+  const renewalRate = newMembersCount > 0
+    ? ((renewalsCount / (newMembersCount + renewalsCount)) * 100).toFixed(1)
+    : "0.0"
+
+  // --- New Members Over Time ---
+  const days = Math.round(rangeMs / (1000 * 60 * 60 * 24)) + 1
+  const useWeekBuckets = days > 14
+
+  const newByPeriod: Record<string, number> = {}
+
+  if (useWeekBuckets) {
+    const numWeeks = Math.ceil(days / 7)
+    for (let i = 0; i < numWeeks; i++) newByPeriod[`Wk ${i + 1}`] = 0
+    const rangeStart = new Date(startDate)
+    ;(newThisPeriod || []).forEach((m) => {
+      const d = new Date(m.created_at)
+      const wk = Math.min(Math.floor((d.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24 * 7)), numWeeks - 1)
+      newByPeriod[`Wk ${wk + 1}`]++
+    })
+  } else {
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
+      const key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      newByPeriod[key] = 0
+    }
+    ;(newThisPeriod || []).forEach((m) => {
+      const key = new Date(m.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      if (key in newByPeriod) newByPeriod[key]++
+    })
   }
-  return null
+
+  const newMembersOverTime = Object.entries(newByPeriod).map(([date, value]) => ({ date, value }))
+
+  // --- Membership Type Distribution (active members) ---
+  const typeColors: Record<string, string> = {
+    "1_day": "#9CA3AF", "1_week": "#3B82F6",
+    "1_month": "#8B5CF6", "student_1_month": "#A855F7",
+  }
+  const typeLabels: Record<string, string> = {
+    "1_day": "1 Day", "1_week": "Weekly",
+    "1_month": "Monthly", "student_1_month": "Student",
+  }
+  const typeCounts: Record<string, number> = { "1_day": 0, "1_week": 0, "1_month": 0, "student_1_month": 0 }
+  ;(allMembers || []).filter((m) => m.status === "active").forEach((m) => {
+    if (m.membership_type in typeCounts) typeCounts[m.membership_type]++
+  })
+  const membershipTypeDist = Object.entries(typeCounts).map(([type, value]) => ({
+    name: typeLabels[type] || type,
+    value,
+    color: typeColors[type] || "#6B7280",
+  }))
+
+  // --- Status Breakdown by Week ---
+  const numWeeks = Math.min(Math.ceil(days / 7), 4)
+  const weekBuckets = Array.from({ length: numWeeks }, (_, i) => `Wk ${i + 1}`)
+  const statusByWeek = weekBuckets.map((week) => ({ week, Active: 0, Expired: 0, Suspended: 0 }))
+  const rangeStart = new Date(startDate)
+  ;(allMembers || []).forEach((m) => {
+    if (m.created_at >= startDate + "T00:00:00" && m.created_at <= endDate + "T23:59:59") {
+      const d = new Date(m.created_at)
+      const wi = Math.min(Math.floor((d.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24 * 7)), numWeeks - 1)
+      if (m.status === "active")    statusByWeek[wi].Active++
+      else if (m.status === "expired")   statusByWeek[wi].Expired++
+      else if (m.status === "suspended") statusByWeek[wi].Suspended++
+    }
+  })
+
+  const totalActiveNow = (allMembers || []).filter((m) => m.status === "active").length
+
+  return {
+    newMembersCount,
+    renewalsCount,
+    churnedCount,
+    netGrowth,
+    renewalRate,
+    newDelta,
+    renewalDelta,
+    newMembersOverTime,
+    membershipTypeDist,
+    totalActiveNow,
+    statusByWeek,
+  }
 }
 
-export function MembershipAnalytics() {
+export async function MembershipAnalytics({ range = "30d" }: { range?: string }) {
+  const data = await getMembershipData(range)
+
   return (
     <div className="flex flex-col gap-6">
       {/* Summary Row */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <StatCard title="New Members" value="180" delta={15.2} />
-        <StatCard title="Renewals" value="342" delta={5.4} />
-        <StatCard title="Churned Members" value="45" delta={-12.5} />
-        <StatCard title="Net Growth" value="+135" delta={18.2} />
-        <StatCard title="Renewal Rate" value="88.3%" delta={2.1} />
+        <StatCard title="New Members"    value={String(data.newMembersCount)} delta={parseFloat(data.newDelta.toFixed(1))} deltaLabel="vs prev period" />
+        <StatCard title="Renewals"       value={String(data.renewalsCount)}   delta={parseFloat(data.renewalDelta.toFixed(1))} deltaLabel="vs prev period" />
+        <StatCard title="Churned Members" value={String(data.churnedCount)} />
+        <StatCard title="Net Growth"     value={`${data.netGrowth >= 0 ? "+" : ""}${data.netGrowth}`} />
+        <StatCard title="Renewal Rate"   value={`${data.renewalRate}%`} />
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="h-[350px] flex flex-col">
-          <div className="mb-6">
-            <h3 className="text-[13px] font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">New Members Over Time</h3>
-          </div>
-          <div className="flex-1 w-full relative -mx-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={mockNewMembers} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dx={-10} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-                <Bar dataKey="value" name="New Members" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card className="h-[350px] flex flex-col">
-          <div className="mb-6">
-            <h3 className="text-[13px] font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Membership Type Dist.</h3>
-          </div>
-          <div className="flex-1 w-full relative flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={mockMembershipTypeDist}
-                  cx="50%"
-                  cy="45%"
-                  innerRadius="60%"
-                  outerRadius="80%"
-                  paddingAngle={3}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {mockMembershipTypeDist.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#1E1E2E', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-                  itemStyle={{ color: '#fff' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-4">
-              <span className="text-sm text-gray-400">Total Active</span>
-              <span className="text-xl font-bold text-white">1,900</span>
-            </div>
-            
-            <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-4">
-               {mockMembershipTypeDist.map((entry, i) => (
-                 <div key={i} className="flex items-center gap-1.5">
-                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }}></div>
-                   <span className="text-xs text-gray-400">{entry.name}</span>
-                 </div>
-               ))}
-            </div>
-          </div>
-        </Card>
-
-        <Card className="h-[350px] flex flex-col">
-          <div className="mb-6 flex justify-between items-center">
-            <h3 className="text-[13px] font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Status Breakdown</h3>
-            <div className="flex items-center gap-3 text-xs font-medium">
-              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#10B981]"></div><span className="text-gray-400 hidden sm:inline">Active</span></div>
-              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#EF4444]"></div><span className="text-gray-400 hidden sm:inline">Expired</span></div>
-              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#F59E0B]"></div><span className="text-gray-400 hidden sm:inline">Suspended</span></div>
-            </div>
-          </div>
-          <div className="flex-1 w-full relative -mx-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={mockStatusBreakdown} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dx={-10} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-                <Bar dataKey="Active" stackId="a" fill="#10B981" />
-                <Bar dataKey="Expired" stackId="a" fill="#EF4444" />
-                <Bar dataKey="Suspended" stackId="a" fill="#F59E0B" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </div>
+      <MembershipCharts
+        newMembersOverTime={data.newMembersOverTime}
+        membershipTypeDist={data.membershipTypeDist}
+        totalActiveNow={data.totalActiveNow}
+        statusByWeek={data.statusByWeek}
+      />
     </div>
   )
 }

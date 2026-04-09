@@ -7,7 +7,6 @@ import {
   Home, 
   Users, 
   BarChart2, 
-  ScanLine, 
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -19,7 +18,6 @@ const navItems = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Members", href: "/members", icon: Users },
   { name: "Analytics", href: "/analytics", icon: BarChart2 },
-  { name: "Scanner", href: "/scanner", icon: ScanLine },
   { name: "Settings", href: "/settings", icon: Settings },
 ]
 

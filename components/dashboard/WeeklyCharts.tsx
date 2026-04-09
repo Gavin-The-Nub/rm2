@@ -4,25 +4,6 @@ import React, { useState } from "react"
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
 import { Card } from "@/components/ui/Card"
 
-const mockAttendanceData = [
-  { name: 'Mon', '1 Day': 12, 'Weekly': 45, 'Monthly': 100, total: 157 },
-  { name: 'Tue', '1 Day': 18, 'Weekly': 50, 'Monthly': 110, total: 178 },
-  { name: 'Wed', '1 Day': 20, 'Weekly': 48, 'Monthly': 105, total: 173 },
-  { name: 'Thu', '1 Day': 15, 'Weekly': 55, 'Monthly': 115, total: 185 },
-  { name: 'Fri', '1 Day': 25, 'Weekly': 60, 'Monthly': 120, total: 205 },
-  { name: 'Sat', '1 Day': 40, 'Weekly': 35, 'Monthly': 80, total: 155 },
-  { name: 'Sun', '1 Day': 30, 'Weekly': 30, 'Monthly': 75, total: 135 },
-]
-
-const mockSalesData = [
-  { name: 'Mon', '1 Day': 60, 'Weekly': 675, 'Monthly': 5000, total: 5735 },
-  { name: 'Tue', '1 Day': 90, 'Weekly': 750, 'Monthly': 5500, total: 6340 },
-  { name: 'Wed', '1 Day': 100, 'Weekly': 720, 'Monthly': 5250, total: 6070 },
-  { name: 'Thu', '1 Day': 75, 'Weekly': 825, 'Monthly': 5750, total: 6650 },
-  { name: 'Fri', '1 Day': 125, 'Weekly': 900, 'Monthly': 6000, total: 7025 },
-  { name: 'Sat', '1 Day': 200, 'Weekly': 525, 'Monthly': 4000, total: 4725 },
-  { name: 'Sun', '1 Day': 150, 'Weekly': 450, 'Monthly': 3750, total: 4350 },
-]
 
 const CustomTooltip = ({ active, payload, label, prefix = "" }: any) => {
   if (active && payload && payload.length) {
@@ -121,7 +102,7 @@ function StackedBarChartHover({ data, prefix = "" }: ChartProps) {
 }
 
 
-export function WeeklyAttendanceChart() {
+export function WeeklyAttendanceChart({ data }: { data: any[] }) {
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
@@ -134,13 +115,13 @@ export function WeeklyAttendanceChart() {
         <h3 className="text-[13px] font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Weekly Attendance</h3>
       </div>
       <div className="flex-1 w-full relative -mx-2 min-h-[250px] chart-wrapper">
-        {mounted && <StackedBarChartHover data={mockAttendanceData} />}
+        {mounted && <StackedBarChartHover data={data} />}
       </div>
     </Card>
   )
 }
 
-export function WeeklySalesChart() {
+export function WeeklySalesChart({ data }: { data: any[] }) {
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
@@ -153,7 +134,7 @@ export function WeeklySalesChart() {
         <h3 className="text-[13px] font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Weekly Sales</h3>
       </div>
       <div className="flex-1 w-full relative -mx-2 min-h-[250px] chart-wrapper">
-        {mounted && <StackedBarChartHover data={mockSalesData} prefix="₱" />}
+        {mounted && <StackedBarChartHover data={data} prefix="₱" />}
       </div>
     </Card>
   )

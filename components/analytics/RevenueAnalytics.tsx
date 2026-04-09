@@ -1,163 +1,238 @@
-"use client"
-
-import React, { useState } from "react"
+import React from "react"
 import { StatCard } from "@/components/dashboard/StatCard"
 import { Card } from "@/components/ui/Card"
-import { 
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, BarChart, Bar, Legend
-} from "recharts"
+import { createClient } from "@supabase/supabase-js"
+import RevenueCharts from "@/components/analytics/RevenueCharts"
+import { getRangeDates } from "@/utils/date-filters"
 
-const mockRevenueOverTime = [
-  { date: 'Mon', newMembers: 1200, renewals: 800 },
-  { date: 'Tue', newMembers: 1500, renewals: 1200 },
-  { date: 'Wed', newMembers: 800, renewals: 950 },
-  { date: 'Thu', newMembers: 2100, renewals: 1500 },
-  { date: 'Fri', newMembers: 2400, renewals: 1800 },
-  { date: 'Sat', newMembers: 1100, renewals: 600 },
-  { date: 'Sun', newMembers: 900, renewals: 500 },
-]
+async function getRevenueData(range: string) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
 
-const mockMembershipTypeRev = [
-  { name: '1 Day', value: 1500, color: '#9CA3AF' },
-  { name: 'Weekly', value: 3500, color: '#3B82F6' },
-  { name: 'Monthly', value: 8500, color: '#8B5CF6' },
-]
+  const now = new Date()
+  const { startDate, endDate } = getRangeDates(range)
 
-const mockMonthlyComparison = [
-  { week: 'Week 1', current: 12000, previous: 10500 },
-  { week: 'Week 2', current: 14500, previous: 12100 },
-  { week: 'Week 3', current: 11200, previous: 11800 },
-  { week: 'Week 4', current: 4500, previous: 13200 }, // Current month still ongoing
-]
+  // Previous period = same number of days just before startDate
+  const rangeMs = now.getTime() - new Date(startDate).getTime()
+  const prevEnd  = new Date(new Date(startDate).getTime() - 1).toISOString().split("T")[0]
+  const prevStart = new Date(new Date(startDate).getTime() - rangeMs - 1).toISOString().split("T")[0]
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-[#1E1E2E] border border-white/10 p-3 rounded-lg shadow-xl text-sm">
-        <p className="font-semibold text-white mb-2">{label}</p>
-        {payload.map((entry: any, index: number) => (
-          <div key={index} className="flex justify-between items-center gap-4 mb-1">
-            <div className="flex items-center gap-2">
-              <div 
-                className="w-2 h-2 rounded-full" 
-                style={{ backgroundColor: entry.color }}
-              />
-              <span className="text-gray-400 capitalize">{entry.name}</span>
-            </div>
-            <span className="text-white font-medium">
-              ${entry.value}
-            </span>
-          </div>
-        ))}
-      </div>
-    )
+  // Fetch new member payments (current period)
+  const { data: newMembersThis } = await supabase
+    .from("members")
+    .select("payment_amount, membership_type, created_at")
+    .gte("created_at", startDate + "T00:00:00")
+    .lte("created_at", endDate + "T23:59:59")
+
+  // Fetch renewals (current period) — use amount field
+  const { data: renewalsThis } = await supabase
+    .from("renewals")
+    .select("amount, membership_type, created_at")
+    .gte("created_at", startDate + "T00:00:00")
+    .lte("created_at", endDate + "T23:59:59")
+
+  // Fetch prev period
+  const { data: newMembersPrev } = await supabase
+    .from("members")
+    .select("payment_amount, created_at")
+    .gte("created_at", prevStart + "T00:00:00")
+    .lte("created_at", prevEnd + "T23:59:59")
+
+  const { data: renewalsPrev } = await supabase
+    .from("renewals")
+    .select("amount, created_at")
+    .gte("created_at", prevStart + "T00:00:00")
+    .lte("created_at", prevEnd + "T23:59:59")
+
+  // --- Compute summary stats ---
+  const totalRevenue =
+    (newMembersThis || []).reduce((s, m) => s + Number(m.payment_amount || 0), 0) +
+    (renewalsThis   || []).reduce((s, r) => s + Number(r.amount || 0), 0)
+
+  const newMemberRevenue = (newMembersThis || []).reduce((s, m) => s + Number(m.payment_amount || 0), 0)
+  const renewalRevenue   = (renewalsThis   || []).reduce((s, r) => s + Number(r.amount || 0), 0)
+
+  const prevTotalRevenue =
+    (newMembersPrev || []).reduce((s, m) => s + Number(m.payment_amount || 0), 0) +
+    (renewalsPrev   || []).reduce((s, r) => s + Number(r.amount || 0), 0)
+
+  const revDelta = prevTotalRevenue > 0
+    ? ((totalRevenue - prevTotalRevenue) / prevTotalRevenue) * 100
+    : 0
+
+  const totalMembers =
+    (newMembersThis || []).length + (renewalsThis || []).length
+  const avgRevPerMember = totalMembers > 0 ? totalRevenue / totalMembers : 0
+
+  // --- Revenue Over Time (daily buckets across the period) ---
+  // Show up to last 14 days of the range for readability; bucket into weeks for longer ranges
+  const days = Math.round((now.getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
+  const useWeekBuckets = days > 14
+
+  const revenueByDay: Record<string, { newMembers: number; renewals: number }> = {}
+
+  if (useWeekBuckets) {
+    // Week buckets: Week 1, Week 2, …
+    for (let i = 0; i < Math.ceil(days / 7); i++) {
+      revenueByDay[`Wk ${i + 1}`] = { newMembers: 0, renewals: 0 }
+    }
+    const rangeStart = new Date(startDate)
+    ;(newMembersThis || []).forEach((m) => {
+      const d = new Date(m.created_at)
+      const wk = Math.floor((d.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24 * 7))
+      const key = `Wk ${Math.min(wk + 1, Math.ceil(days / 7))}`
+      if (revenueByDay[key]) revenueByDay[key].newMembers += Number(m.payment_amount || 0)
+    })
+    ;(renewalsThis || []).forEach((r) => {
+      const d = new Date(r.created_at)
+      const wk = Math.floor((d.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24 * 7))
+      const key = `Wk ${Math.min(wk + 1, Math.ceil(days / 7))}`
+      if (revenueByDay[key]) revenueByDay[key].renewals += Number(r.amount || 0)
+    })
+  } else {
+    // Daily: show each day label as "Apr 7"
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
+      const key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      revenueByDay[key] = { newMembers: 0, renewals: 0 }
+    }
+    ;(newMembersThis || []).forEach((m) => {
+      const key = new Date(m.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      if (revenueByDay[key]) revenueByDay[key].newMembers += Number(m.payment_amount || 0)
+    })
+    ;(renewalsThis || []).forEach((r) => {
+      const key = new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      if (revenueByDay[key]) revenueByDay[key].renewals += Number(r.amount || 0)
+    })
   }
-  return null
+
+  const revenueOverTime = Object.entries(revenueByDay).map(([date, vals]) => ({
+    date,
+    ...vals,
+  }))
+
+  // Highest revenue day
+  let highestRevDay = { day: "N/A", amount: 0 }
+  revenueOverTime.forEach((d) => {
+    const total = d.newMembers + d.renewals
+    if (total > highestRevDay.amount) highestRevDay = { day: d.date, amount: total }
+  })
+
+  // --- Revenue by Membership Type ---
+  const typeColors: Record<string, string> = {
+    "1_day": "#9CA3AF", "1_week": "#3B82F6",
+    "1_month": "#8B5CF6", "student_1_month": "#A855F7",
+  }
+  const typeLabels: Record<string, string> = {
+    "1_day": "1 Day", "1_week": "Weekly",
+    "1_month": "Monthly", "student_1_month": "Student",
+  }
+  const typeRevMap: Record<string, number> = { "1_day": 0, "1_week": 0, "1_month": 0, "student_1_month": 0 }
+  ;(newMembersThis || []).forEach((m) => {
+    if (m.membership_type in typeRevMap)
+      typeRevMap[m.membership_type] += Number(m.payment_amount || 0)
+  })
+  ;(renewalsThis || []).forEach((r) => {
+    if (r.membership_type in typeRevMap)
+      typeRevMap[r.membership_type] += Number(r.amount || 0)
+  })
+
+  const membershipTypeRev = Object.entries(typeRevMap).map(([type, value]) => ({
+    name: typeLabels[type] || type,
+    value,
+    color: typeColors[type] || "#6B7280",
+  }))
+  const totalTypeRev = membershipTypeRev.reduce((s, e) => s + e.value, 0)
+
+  // --- Period Comparison (week buckets of the current period vs previous) ---
+  const numWeeks = Math.min(Math.ceil(days / 7), 4)
+  const weekBuckets = Array.from({ length: numWeeks }, (_, i) => `Wk ${i + 1}`)
+  const currentWeeks = new Array(numWeeks).fill(0)
+  const previousWeeks = new Array(numWeeks).fill(0)
+
+  const rangeStart = new Date(startDate)
+  ;(newMembersThis || []).forEach((m) => {
+    const d = new Date(m.created_at)
+    const wi = Math.min(Math.floor((d.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24 * 7)), numWeeks - 1)
+    currentWeeks[wi] += Number(m.payment_amount || 0)
+  })
+  ;(renewalsThis || []).forEach((r) => {
+    const d = new Date(r.created_at)
+    const wi = Math.min(Math.floor((d.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24 * 7)), numWeeks - 1)
+    currentWeeks[wi] += Number(r.amount || 0)
+  })
+  const prevStart2 = new Date(prevStart)
+  ;(newMembersPrev || []).forEach((m) => {
+    const d = new Date(m.created_at)
+    const wi = Math.min(Math.floor((d.getTime() - prevStart2.getTime()) / (1000 * 60 * 60 * 24 * 7)), numWeeks - 1)
+    previousWeeks[wi] += Number(m.payment_amount || 0)
+  })
+  ;(renewalsPrev || []).forEach((r) => {
+    const d = new Date(r.created_at)
+    const wi = Math.min(Math.floor((d.getTime() - prevStart2.getTime()) / (1000 * 60 * 60 * 24 * 7)), numWeeks - 1)
+    previousWeeks[wi] += Number(r.amount || 0)
+  })
+
+  const monthlyComparison = weekBuckets.map((week, i) => ({
+    week,
+    current: currentWeeks[i],
+    previous: previousWeeks[i],
+  }))
+
+  return {
+    totalRevenue,
+    newMemberRevenue,
+    renewalRevenue,
+    avgRevPerMember,
+    revDelta,
+    highestRevDay,
+    revenueOverTime,
+    membershipTypeRev,
+    totalTypeRev,
+    monthlyComparison,
+  }
 }
 
-export function RevenueAnalytics() {
+export async function RevenueAnalytics({ range = "30d" }: { range?: string }) {
+  const data = await getRevenueData(range)
+
   return (
     <div className="flex flex-col gap-6">
       {/* Summary Row */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <StatCard title="Total Revenue" value="₱45,250" delta={12.5} />
-        <StatCard title="New Member Revenue" value="₱28,400" delta={8.2} />
-        <StatCard title="Renewal Revenue" value="₱16,850" delta={18.4} />
-        <StatCard title="Avg Rev / Member" value="₱112" delta={-2.1} />
-        <StatCard title="Highest Rev Day" value="₱4,250" deltaLabel="Friday" />
+        <StatCard
+          title="Total Revenue"
+          value={`₱${data.totalRevenue.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+          delta={parseFloat(data.revDelta.toFixed(1))}
+          deltaLabel="vs prev period"
+        />
+        <StatCard
+          title="New Member Revenue"
+          value={`₱${data.newMemberRevenue.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+        />
+        <StatCard
+          title="Renewal Revenue"
+          value={`₱${data.renewalRevenue.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+        />
+        <StatCard
+          title="Avg Rev / Member"
+          value={`₱${data.avgRevPerMember.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+        />
+        <StatCard
+          title="Highest Rev Day"
+          value={`₱${data.highestRevDay.amount.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+          deltaLabel={data.highestRevDay.day}
+        />
       </div>
 
-      {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2 h-[350px] flex flex-col">
-          <div className="mb-6 flex justify-between items-center">
-            <h3 className="text-[13px] font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Revenue Over Time</h3>
-            <div className="flex items-center gap-4 text-xs font-medium">
-              <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#3B82F6]"></div><span className="text-gray-400">New Members</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#10B981]"></div><span className="text-gray-400">Renewals</span></div>
-            </div>
-          </div>
-          <div className="flex-1 w-full relative -mx-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={mockRevenueOverTime} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dx={-10} tickFormatter={(val) => `₱${val}`} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-                <Line type="monotone" dataKey="newMembers" name="New Members" stroke="#3B82F6" strokeWidth={3} dot={false} activeDot={{ r: 6, strokeWidth: 0, fill: '#3B82F6' }} />
-                <Line type="monotone" dataKey="renewals" name="Renewals" stroke="#10B981" strokeWidth={3} dot={false} activeDot={{ r: 6, strokeWidth: 0, fill: '#10B981' }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card className="h-[350px] flex flex-col">
-          <div className="mb-6">
-            <h3 className="text-[13px] font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Revenue by Membership</h3>
-          </div>
-          <div className="flex-1 w-full relative flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={mockMembershipTypeRev}
-                  cx="50%"
-                  cy="45%"
-                  innerRadius="60%"
-                  outerRadius="80%"
-                  paddingAngle={3}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {mockMembershipTypeRev.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#1E1E2E', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-                  itemStyle={{ color: '#fff' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-4">
-              <span className="text-sm text-gray-400">Total</span>
-              <span className="text-xl font-bold text-white">₱13,500</span>
-            </div>
-            
-            <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-4">
-               {mockMembershipTypeRev.map((entry, i) => (
-                 <div key={i} className="flex items-center gap-1.5">
-                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }}></div>
-                   <span className="text-xs text-gray-400">{entry.name}</span>
-                 </div>
-               ))}
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 gap-4">
-        <Card className="h-[350px] flex flex-col">
-          <div className="mb-6 flex justify-between items-center">
-            <h3 className="text-[13px] font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">Monthly Revenue Comparison</h3>
-             <div className="flex items-center gap-4 text-xs font-medium">
-              <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#3B82F6]"></div><span className="text-gray-400">Current Month</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#1E1E2E] border border-white/20"></div><span className="text-gray-400">Previous Month</span></div>
-            </div>
-          </div>
-          <div className="flex-1 w-full relative -mx-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={mockMonthlyComparison} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dx={-10} tickFormatter={(val) => `₱${val}`} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-                <Bar dataKey="current" name="Current Month" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="previous" name="Previous Month" fill="#1E1E2E" stroke="rgba(255,255,255,0.2)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </div>
+      <RevenueCharts
+        revenueOverTime={data.revenueOverTime}
+        membershipTypeRev={data.membershipTypeRev}
+        totalTypeRev={data.totalTypeRev}
+        monthlyComparison={data.monthlyComparison}
+      />
     </div>
   )
 }

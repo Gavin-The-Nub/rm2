@@ -55,7 +55,7 @@ export function MembersTable() {
       }
 
       // Map and aggregate
-      const formattedData: MemberRow[] = data.map(m => {
+      const formattedData: MemberRow[] = data.map((m: any) => {
         // Calculate total visits and last seen
         const visits = m.attendance || []
         const totalVisits = visits.length

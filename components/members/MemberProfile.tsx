@@ -6,9 +6,8 @@ import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { Badge } from "@/components/ui/Badge"
 import { format } from "date-fns"
-import { ArrowLeft, User, QrCode, Calendar, Clock, Loader2, AlertCircle } from "lucide-react"
+import { ArrowLeft, User, Calendar, Clock, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
-import { QRCodeSVG } from "qrcode.react"
 import { RenewModal } from "./RenewModal"
 
 type MemberProfileProps = {
@@ -18,7 +17,6 @@ type MemberProfileProps = {
 
 export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
   const [suspendLoading, setSuspendLoading] = useState(false)
-  const [showQR, setShowQR] = useState(false)
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false)
 
   const handleToggleSuspend = async () => {
@@ -153,40 +151,6 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
                 <span className="text-xl font-semibold text-primary">₱{totalPaid.toFixed(2)}</span>
               </div>
             </div>
-          </Card>
-
-          <Card className="flex flex-col items-center justify-center p-8 border border-white/5">
-            {!showQR ? (
-              <div className="text-center w-full">
-                <div className="w-16 h-16 rounded-2xl bg-input border border-white/10 flex items-center justify-center mx-auto mb-4">
-                  <QrCode className="w-8 h-8 text-secondary" />
-                </div>
-                <h3 className="text-primary font-medium mb-2">Member QR Code</h3>
-                <p className="text-sm text-muted mb-6">Unique identifier for walk-in scanning. Never expires.</p>
-                <Button variant="secondary" className="w-full" onClick={() => setShowQR(true)}>
-                  Reveal QR Code
-                </Button>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center w-full animate-in fade-in duration-300">
-                <div className="p-4 bg-white rounded-xl mb-6 shadow-xl">
-                  {/* Using react-qrcode SVG for clean scaling */}
-                  {member.qr_code ? (
-                    <QRCodeSVG 
-                      value={member.qr_code} 
-                      size={200}
-                      level={"H"}
-                      includeMargin={false}
-                    />
-                  ) : (
-                    <div className="w-[200px] h-[200px] bg-gray-100 flex items-center justify-center text-gray-400 text-sm">No QR</div>
-                  )}
-                </div>
-                <Button variant="secondary" className="w-full text-xs shadow-none" onClick={() => setShowQR(false)}>
-                  Hide
-                </Button>
-              </div>
-            )}
           </Card>
         </div>
 

@@ -1,8 +1,130 @@
 import { StatCard } from "@/components/dashboard/StatCard"
 import { MiniChart } from "@/components/dashboard/MiniChart"
 import { WeeklyAttendanceChart, WeeklySalesChart } from "@/components/dashboard/WeeklyCharts"
+import { supabase } from "@/utils/supabase/client"
+import { startOfDay, startOfMonth, subDays, format, isAfter, isBefore, addDays, parseISO, isSameDay } from "date-fns"
 
-export default function Dashboard() {
+// Ensure dynamic rendering because we fetch live database
+export const dynamic = 'force-dynamic'
+
+export default async function Dashboard() {
+  const { data: membersResponse } = await supabase.from('members').select('*')
+  const { data: attendanceResponse } = await supabase.from('attendance').select('*')
+  const { data: renewalsResponse } = await supabase.from('renewals').select('*')
+
+  const members = membersResponse || []
+  const attendance = attendanceResponse || []
+  const renewals = renewalsResponse || []
+
+  const today = new Date()
+  const todayStart = startOfDay(today)
+  const thisMonthStart = startOfMonth(today)
+  
+  // Total Active Members
+  const activeMembers = members.filter(m => m.status === 'active')
+  const totalActiveMembers = activeMembers.length
+
+  // Walk-in Count (1_day memberships created today)
+  const walkInToday = members.filter(m => m.membership_type === '1_day' && m.created_at && isSameDay(parseISO(m.created_at), todayStart))
+  
+  // Today's Check-Ins
+  const todaysCheckIns = attendance.filter(a => a.check_in_time && isSameDay(parseISO(a.check_in_time), todayStart))
+  
+  // Today's Revenue
+  const todaysMemberSales = members.filter(m => m.created_at && isSameDay(parseISO(m.created_at), todayStart)).reduce((sum, m) => sum + (m.payment_amount || 0), 0)
+  const todaysRenewalSales = renewals.filter(r => r.renewal_date && isSameDay(parseISO(r.renewal_date), todayStart)).reduce((sum, r) => sum + (r.amount || 0), 0)
+  const todaysRevenue = todaysMemberSales + todaysRenewalSales
+  
+  // Monthly Revenue
+  const monthlyMemberSales = members.filter(m => m.created_at && (isAfter(parseISO(m.created_at), thisMonthStart) || isSameDay(parseISO(m.created_at), thisMonthStart))).reduce((sum, m) => sum + (m.payment_amount || 0), 0)
+  const monthlyRenewalSales = renewals.filter(r => r.renewal_date && (isAfter(parseISO(r.renewal_date), thisMonthStart) || isSameDay(parseISO(r.renewal_date), thisMonthStart))).reduce((sum, r) => sum + (r.amount || 0), 0)
+  const monthlyRevenue = monthlyMemberSales + monthlyRenewalSales
+  
+  // Expiring in 7 Days
+  const expiring7Days = members.filter(m => {
+    if (!m.end_date) return false
+    const end = parseISO(m.end_date)
+    return isAfter(end, today) && isBefore(end, addDays(today, 7))
+  }).length
+
+  // WEEKLY CHARTS DATA PREP
+  // Last 7 days including today
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = subDays(todayStart, 6 - i)
+    return {
+      date: d,
+      name: format(d, 'EEE MMM d'), // Mon Apr 7, etc.
+    }
+  })
+
+  const weeklyAttendanceData = last7Days.map(day => {
+    const isDay = (dateString: string) => isSameDay(parseISO(dateString), day.date)
+    
+    // Check-ins for this day
+    const dayCheckIns = attendance.filter(a => a.check_in_date && isDay(a.check_in_date))
+    
+    const getMemberType = (memberId: string) => {
+      const m = members.find(mx => mx.id === memberId)
+      return m?.membership_type || '1_month'
+    }
+
+    let oneDay = 0
+    let weekly = 0
+    let monthly = 0
+
+    dayCheckIns.forEach(a => {
+      const type = getMemberType(a.member_id)
+      if (type === '1_day') oneDay++
+      else if (type === '1_week') weekly++
+      else if (type === '1_month' || type === 'student_1_month') monthly++
+    })
+
+    return {
+      name: day.name,
+      '1 Day': oneDay,
+      'Weekly': weekly,
+      'Monthly': monthly,
+      total: oneDay + weekly + monthly
+    }
+  })
+
+  const weeklySalesData = last7Days.map(day => {
+    const isDay = (dateString: string) => isSameDay(parseISO(dateString), day.date)
+    
+    let oneDaySales = 0
+    let weeklySales = 0
+    let monthlySales = 0
+
+    const processPayment = (type: string, amount: number) => {
+      if (type === '1_day') oneDaySales += amount
+      else if (type === '1_week') weeklySales += amount
+      else if (type === '1_month' || type === 'student_1_month') monthlySales += amount
+    }
+
+    // Members created on this day
+    members.filter(m => m.created_at && isDay(m.created_at)).forEach(m => {
+      processPayment(m.membership_type, m.payment_amount || 0)
+    })
+
+    // Renewals on this day
+    renewals.filter(r => r.renewal_date && isDay(r.renewal_date)).forEach(r => {
+      const parentMember = members.find(mx => mx.id === r.member_id)
+      processPayment(parentMember?.membership_type || '1_month', r.amount || 0)
+    })
+
+    return {
+      name: day.name,
+      '1 Day': oneDaySales,
+      'Weekly': weeklySales,
+      'Monthly': monthlySales,
+      total: oneDaySales + weeklySales + monthlySales
+    }
+  })
+
+  const attendanceTotals = weeklyAttendanceData.map(d => d.total)
+  const salesTotals = weeklySalesData.map(d => d.total)
+  const walkinTotals = weeklyAttendanceData.map(d => d['1 Day'])
+
   return (
     <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
@@ -12,55 +134,55 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard 
           title="Total Active Members" 
-          value="4,365" 
-          delta={12.4} 
+          value={totalActiveMembers.toLocaleString()} 
+          delta={0} // Kept for layout, could be calculated against last month
           deltaLabel="vs last month"
           className="md:col-span-2 min-h-[160px]"
-          chart={<MiniChart data={[30, 40, 35, 50, 49, 60, 70, 91, 125]} color="#3B82F6" />}
+          chart={<MiniChart data={attendanceTotals.length > 0 ? attendanceTotals : [0,0,0,0,0,0,0]} color="#3B82F6" />}
         />
         <StatCard 
           title="Today's Check-Ins" 
-          value="284" 
-          delta={5.2} 
+          value={todaysCheckIns.length.toString()} 
+          delta={0} 
           className="min-h-[160px]"
-          chart={<MiniChart data={[10, 20, 15, 25, 22, 30, 40]} color="#10B981" />}
+          chart={<MiniChart data={attendanceTotals.length > 0 ? attendanceTotals : [0,0,0,0,0,0,0]} color="#10B981" />}
         />
         <StatCard 
           title="Walk-in Count" 
-          value="42" 
-          delta={-2.1} 
+          value={walkInToday.length.toString()} 
+          delta={0} 
           className="min-h-[160px]"
-          chart={<MiniChart data={[5, 12, 8, 15, 10, 14, 9]} color="#F59E0B" />}
+          chart={<MiniChart data={walkinTotals.length > 0 ? walkinTotals : [0,0,0,0,0,0,0]} color="#F59E0B" />}
         />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard 
           title="Today's Revenue" 
-          value="₱1,250" 
+          value={`₱${todaysRevenue.toLocaleString()}`} 
           className="min-h-[160px]"
-          chart={<MiniChart data={[200, 300, 250, 400, 350, 500, 600]} color="#10B981" />}
+          chart={<MiniChart data={salesTotals.length > 0 ? salesTotals : [0,0,0,0,0,0,0]} color="#10B981" />}
         />
         <StatCard 
           title="Monthly Revenue" 
-          value="₱45,020" 
-          delta={14.6} 
+          value={`₱${monthlyRevenue.toLocaleString()}`} 
+          delta={0} 
           className="min-h-[160px]"
-          chart={<MiniChart data={[5000, 10000, 15000, 12000, 18000, 22000, 30000]} color="#3B82F6" />}
+          chart={<MiniChart data={salesTotals.length > 0 ? salesTotals : [0,0,0,0,0,0,0]} color="#3B82F6" />}
         />
         <StatCard 
           title="Expiring in 7 Days" 
-          value="156" 
-          delta={-8.4} 
+          value={expiring7Days.toString()} 
+          delta={0} 
           deltaLabel="Needs attention"
           className="md:col-span-2 min-h-[160px]"
-          chart={<MiniChart data={[50, 40, 45, 30, 35, 20, 15]} color="#EF4444" />}
+          chart={<MiniChart data={[0,0,0,0,0,0,0]} color="#EF4444" />}
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-2">
-        <WeeklyAttendanceChart />
-        <WeeklySalesChart />
+        <WeeklyAttendanceChart data={weeklyAttendanceData} />
+        <WeeklySalesChart data={weeklySalesData} />
       </div>
     </div>
   )

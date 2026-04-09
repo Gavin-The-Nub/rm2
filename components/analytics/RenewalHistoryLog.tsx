@@ -1,45 +1,118 @@
-"use client"
-
-import React, { useState } from "react"
+import React from "react"
 import { Card } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
-import { Input } from "@/components/ui/Input"
-import { Search, Filter, Download } from "lucide-react"
+import { createClient } from "@supabase/supabase-js"
 
-const mockRenewals = [
-  { id: 201, date: "Today, 9:00 AM", name: "John Santos", type: "Monthly", prevEnd: "Dec 31, 2025", newEnd: "Jan 31, 2026", amount: "₱45.00" },
-  { id: 202, date: "Yesterday, 2:30 PM", name: "Emma Wilson", type: "Monthly", prevEnd: "Feb 15, 2026", newEnd: "Mar 15, 2026", amount: "₱45.00" },
-  { id: 203, date: "Feb 24, 2026, 11:15 AM", name: "Luke Harris", type: "Weekly", prevEnd: "Feb 20, 2026", newEnd: "Feb 27, 2026", amount: "₱15.00" },
-  { id: 204, date: "Feb 22, 2026, 4:00 PM", name: "Oliver Brown", type: "Monthly", prevEnd: "Feb 1, 2026", newEnd: "Mar 1, 2026", amount: "₱45.00" },
+const MONTHS = [
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December"
 ]
 
-export function RenewalHistoryLog() {
-  const [searchTerm, setSearchTerm] = useState("")
+async function getRenewalLogs(month: number | null, year: number | null) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const now = new Date()
+  const filterMonth = month ?? now.getMonth() + 1
+  const filterYear  = year  ?? (month ? now.getFullYear() : null)
+
+  let query = supabase
+    .from("renewals")
+    .select(
+      "id, created_at, membership_type, previous_end_date, new_end_date, amount, members(name)",
+      { count: "exact" }
+    )
+    .order("created_at", { ascending: false })
+    .limit(50)
+
+  if (filterYear && month) {
+    const startDate = `${filterYear}-${String(filterMonth).padStart(2, "0")}-01`
+    const endDay    = new Date(filterYear, filterMonth, 0).getDate()
+    const endDate   = `${filterYear}-${String(filterMonth).padStart(2, "0")}-${String(endDay).padStart(2, "0")}`
+    query = query.gte("created_at", startDate + "T00:00:00").lte("created_at", endDate + "T23:59:59")
+  } else if (filterYear && !month) {
+    query = query
+      .gte("created_at", `${filterYear}-01-01T00:00:00`)
+      .lte("created_at", `${filterYear}-12-31T23:59:59`)
+  }
+
+  const { data: renewals, count } = await query
+
+  const typeLabels: Record<string, string> = {
+    "1_day": "1 Day", "1_week": "Weekly",
+    "1_month": "Monthly", "student_1_month": "Student",
+  }
+
+  const today     = new Date().toISOString().split("T")[0]
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0]
+
+  const rows = (renewals || []).map((r) => {
+    const member = (r as any).members
+    const name = member?.name ?? "Unknown"
+
+    const dateObj = new Date(r.created_at)
+    const dateStr = dateObj.toISOString().split("T")[0]
+    const timeStr = dateObj.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+
+    let dateLabel = ""
+    if (dateStr === today) dateLabel = `Today, ${timeStr}`
+    else if (dateStr === yesterday) dateLabel = `Yesterday, ${timeStr}`
+    else {
+      dateLabel = `${dateObj.toLocaleDateString("en-US", {
+        weekday: "short", month: "short", day: "numeric", year: "numeric",
+      })}, ${timeStr}`
+    }
+
+    const formatDate = (d: string) =>
+      d ? new Date(d + "T00:00:00").toLocaleDateString("en-US", {
+        weekday: "short", month: "short", day: "numeric", year: "numeric",
+      }) : "—"
+
+    return {
+      id: r.id,
+      date: dateLabel,
+      name,
+      type: typeLabels[r.membership_type] || r.membership_type,
+      prevEnd: formatDate(r.previous_end_date),
+      newEnd: formatDate(r.new_end_date),
+      amount: r.amount != null ? `₱${Number(r.amount).toFixed(2)}` : "—",
+    }
+  })
+
+  return { rows, total: count ?? 0 }
+}
+
+export async function RenewalHistoryLog({
+  month,
+  year,
+}: {
+  month: number | null
+  year: number | null
+}) {
+  const { rows, total } = await getRenewalLogs(month, year)
+
+  const now = new Date()
+  const filterMonth = month ?? now.getMonth() + 1
+  const filterYear  = year  ?? now.getFullYear()
+  const periodLabel = month
+    ? `${MONTHS[filterMonth - 1]} ${filterYear}`
+    : year
+    ? `${filterYear}`
+    : "All Time"
 
   return (
     <Card className="flex flex-col">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-6 border-b border-white/[0.05] gap-4">
         <div>
-           <h3 className="text-lg font-semibold text-white">Renewal Log</h3>
-           <p className="text-sm text-gray-400 mt-1">History of all membership renewals</p>
+          <h3 className="text-lg font-semibold text-white">Renewal Log</h3>
+          <p className="text-sm text-gray-400 mt-1">
+            History of all membership renewals — <span className="text-gray-300">{periodLabel}</span>
+          </p>
         </div>
-        
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-            <Input 
-              placeholder="Search by name..." 
-              className="pl-9 bg-[#1E1E2E] border-white/10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <button className="p-2.5 rounded-lg bg-[#1E1E2E] border border-white/10 text-gray-400 hover:text-white transition-colors">
-            <Filter size={18} />
-          </button>
-          <button className="p-2.5 rounded-lg bg-[#1E1E2E] border border-white/10 text-gray-400 hover:text-white transition-colors">
-            <Download size={18} />
-          </button>
+        <div className="text-right text-xs text-gray-500">
+          {total.toLocaleString()} total renewals
         </div>
       </div>
 
@@ -56,12 +129,12 @@ export function RenewalHistoryLog() {
             </tr>
           </thead>
           <tbody>
-            {mockRenewals.map((log) => (
+            {rows.map((log) => (
               <tr key={log.id} className="cursor-pointer hover:bg-white/[0.02] transition-colors border-b border-white/[0.02]">
                 <td className="p-4 text-sm text-gray-300">{log.date}</td>
                 <td className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
                       {log.name.charAt(0)}
                     </div>
                     <span className="font-medium text-white">{log.name}</span>
@@ -79,16 +152,16 @@ export function RenewalHistoryLog() {
             ))}
           </tbody>
         </table>
+
+        {rows.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            No renewals found for <span className="text-gray-400">{periodLabel}</span>.
+          </div>
+        )}
       </div>
-      
+
       <div className="p-4 flex items-center justify-between text-sm text-gray-400">
-        <div>Showing 1 to 4 of 342 entries</div>
-        <div className="flex gap-1">
-          <button className="px-3 py-1 rounded border border-white/10 hover:bg-white/5 disabled:opacity-50" disabled>Prev</button>
-          <button className="px-3 py-1 rounded bg-[#3B82F6] text-white">1</button>
-          <button className="px-3 py-1 rounded border border-white/10 hover:bg-white/5">2</button>
-          <button className="px-3 py-1 rounded border border-white/10 hover:bg-white/5">Next</button>
-        </div>
+        <div>Showing {rows.length} of {total.toLocaleString()} entries</div>
       </div>
     </Card>
   )
