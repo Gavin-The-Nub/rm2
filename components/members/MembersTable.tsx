@@ -10,6 +10,11 @@ import { Search, Filter, Plus, User, AlertCircle, MoreVertical } from "lucide-re
 import Link from "next/link"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import {
+  memberSubscriptionCategory,
+  memberStatusBadgeVariant,
+  memberStatusLabel,
+} from "@/lib/memberSubscription"
 
 type MemberRow = {
   id: string
@@ -27,10 +32,18 @@ type MemberRow = {
   last_seen: string | null
 }
 
+type MembersTab = "all" | "active" | "expiring_soon" | "expired"
+type MembershipTypeFilter = "all" | MemberRow["membership_type"]
+type MembershipStatusFilter = "all" | "active" | "expiring_soon" | "expired"
+
 export function MembersTable() {
   const [members, setMembers] = useState<MemberRow[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
+  const [tab, setTab] = useState<MembersTab>("all")
+  const [showFilters, setShowFilters] = useState(false)
+  const [membershipTypeFilter, setMembershipTypeFilter] = useState<MembershipTypeFilter>("all")
+  const [membershipStatusFilter, setMembershipStatusFilter] = useState<MembershipStatusFilter>("all")
 
   useEffect(() => {
     async function fetchMembers() {
@@ -95,10 +108,32 @@ export function MembersTable() {
     fetchMembers()
   }, [])
 
-  const filteredMembers = members.filter(m => 
-    m.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (m.email && m.email.toLowerCase().includes(searchTerm.toLowerCase()))
+  const searchFiltered = members.filter(
+    (m) =>
+      m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (m.email && m.email.toLowerCase().includes(searchTerm.toLowerCase()))
   )
+
+  const tabCounts = {
+    all: members.length,
+    active: members.filter((m) => memberSubscriptionCategory(m) === "active").length,
+    expiring_soon: members.filter((m) => memberSubscriptionCategory(m) === "expiring_soon").length,
+    expired: members.filter((m) => memberSubscriptionCategory(m) === "expired").length,
+  }
+
+  const filteredMembers = searchFiltered.filter((m) => {
+    const matchesTab = tab === "all" ? true : memberSubscriptionCategory(m) === tab
+    const matchesMembershipType = membershipTypeFilter === "all" ? true : m.membership_type === membershipTypeFilter
+    const matchesStatus = membershipStatusFilter === "all" ? true : memberSubscriptionCategory(m) === membershipStatusFilter
+    return matchesTab && matchesMembershipType && matchesStatus
+  })
+
+  const tabs: { id: MembersTab; label: string }[] = [
+    { id: "all", label: "All" },
+    { id: "active", label: "Active" },
+    { id: "expiring_soon", label: "Expiring soon" },
+    { id: "expired", label: "Expired" },
+  ]
 
   const formatMembershipType = (type: string) => {
     switch(type) {
@@ -107,29 +142,6 @@ export function MembersTable() {
       case 'monthly': return 'Monthly'
       default: return type
     }
-  }
-
-  const getStatusColor = (status: string, endDate: string) => {
-    if (status === 'suspended') return 'suspended'
-    if (status === 'cancelled') return 'negative'
-    
-    // Check if expired
-    if (new Date(endDate) < new Date(new Date().setHours(0,0,0,0))) {
-      return 'expired'
-    }
-    
-    return 'active'
-  }
-
-  const getDisplayStatus = (status: string, endDate: string) => {
-    if (status === 'suspended') return 'Suspended'
-    if (status === 'cancelled') return 'Cancelled'
-    
-    if (new Date(endDate) < new Date(new Date().setHours(0,0,0,0))) {
-      return 'Expired'
-    }
-    
-    return 'Active'
   }
 
   return (
@@ -146,7 +158,11 @@ export function MembersTable() {
         </div>
         
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <Button variant="secondary" className="flex-1 sm:flex-none">
+          <Button
+            variant="secondary"
+            className="flex-1 sm:flex-none"
+            onClick={() => setShowFilters((prev) => !prev)}
+          >
             <Filter className="w-4 h-4 mr-2" />
             Filter
           </Button>
@@ -156,6 +172,81 @@ export function MembersTable() {
               Add Member
             </Button>
           </Link>
+        </div>
+      </div>
+
+      {showFilters && (
+        <div className="px-4 py-3 border-b border-white/5 bg-white/[0.02]">
+          <div className="flex flex-col md:flex-row md:items-end gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] uppercase tracking-wider text-muted">Membership Type</label>
+              <select
+                value={membershipTypeFilter}
+                onChange={(e) => setMembershipTypeFilter(e.target.value as MembershipTypeFilter)}
+                className="h-9 min-w-[170px] rounded-md border border-white/10 bg-black/20 px-3 text-sm text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0A84FF]/60"
+              >
+                <option value="all">All types</option>
+                <option value="1_day">1 Day</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] uppercase tracking-wider text-muted">Account Status</label>
+              <select
+                value={membershipStatusFilter}
+                onChange={(e) => setMembershipStatusFilter(e.target.value as MembershipStatusFilter)}
+                className="h-9 min-w-[170px] rounded-md border border-white/10 bg-black/20 px-3 text-sm text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0A84FF]/60"
+              >
+                <option value="all">All statuses</option>
+                <option value="active">Active</option>
+                <option value="expiring_soon">Expiring soon</option>
+                <option value="expired">Expired</option>
+              </select>
+            </div>
+            <Button
+              variant="secondary"
+              className="md:ml-auto"
+              onClick={() => {
+                setMembershipTypeFilter("all")
+                setMembershipStatusFilter("all")
+              }}
+            >
+              Clear
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="px-4 pb-3 border-b border-white/5 overflow-x-auto">
+        <div className="flex flex-wrap gap-2 min-w-min">
+          {tabs.map((t) => {
+            const count = tabCounts[t.id]
+            const isSelected = tab === t.id
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  "inline-flex items-center justify-center rounded-md text-sm font-medium transition-all h-9 px-4 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#0A84FF]/60 focus-visible:ring-offset-[#0a0a0f]",
+                  isSelected
+                    ? "bg-[#0A84FF] text-white border-[#0A84FF]/50 shadow-[0_4px_14px_rgba(10,132,255,0.4)] hover:brightness-110"
+                    : "bg-white/10 text-white/90 border-white/10 shadow-[0_4px_14px_rgba(0,0,0,0.1)] backdrop-blur-md hover:bg-white/15"
+                )}
+              >
+                {t.label}{" "}
+                <span
+                  className={cn(
+                    "tabular-nums ml-0.5",
+                    isSelected ? "text-white/85" : "text-white/55"
+                  )}
+                >
+                  ({count})
+                </span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -176,24 +267,27 @@ export function MembersTable() {
           <tbody className="divide-y divide-white/5">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-muted">Loading members...</td>
+                <td colSpan={8} className="px-6 py-8 text-center text-muted">Loading members...</td>
               </tr>
             ) : filteredMembers.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-muted">No members found.</td>
+                <td colSpan={8} className="px-6 py-8 text-center text-muted">No members found.</td>
               </tr>
             ) : (
               filteredMembers.map((member) => {
-                const isExpired = new Date(member.end_date) < new Date(new Date().setHours(0,0,0,0))
-                const isCancelled = member.status === 'cancelled'
-                const isHighlight = isExpired || isCancelled
+                const cat = memberSubscriptionCategory(member)
+                const isExpired = cat === "expired"
+                const isCancelled = member.status === "cancelled"
+                const isExpiring = cat === "expiring_soon"
+                const isUrgentNegative = isExpired || isCancelled
 
                 return (
                   <tr 
                     key={member.id} 
                     className={cn(
                       "hover:bg-card-hover transition-colors group",
-                      isHighlight && "bg-red-500/[0.03] text-red-100/80"
+                      isUrgentNegative && "bg-red-500/[0.03] text-red-100/80",
+                      isExpiring && !isUrgentNegative && "bg-[#F97316]/[0.06] text-orange-50/95"
                     )}
                   >
                   <td className="px-6 py-4">
@@ -212,10 +306,12 @@ export function MembersTable() {
                     </Link>
                   </td>
                   <td className="px-6 py-4">
-                    <Badge variant={getStatusColor(member.status, member.end_date)}>
+                    <Badge variant={memberStatusBadgeVariant(member)}>
                       <div className="flex items-center gap-1">
-                        {isExpired && <AlertCircle className="w-3 h-3" />}
-                        {getDisplayStatus(member.status, member.end_date)}
+                        {(isExpired || isExpiring) && (
+                          <AlertCircle className="w-3 h-3 shrink-0" />
+                        )}
+                        {memberStatusLabel(member)}
                       </div>
                     </Badge>
                   </td>
@@ -227,7 +323,8 @@ export function MembersTable() {
                   <td className="px-6 py-4 text-secondary">{formatMembershipType(member.membership_type)}</td>
                   <td className={cn(
                     "px-6 py-4 text-secondary",
-                    isExpired && "text-red-400 font-medium"
+                    isExpired && "text-red-400 font-medium",
+                    isExpiring && !isExpired && "text-[#FB923C] font-medium"
                   )}>
                     {format(new Date(member.end_date), 'MMM d, yyyy')}
                   </td>
@@ -235,33 +332,6 @@ export function MembersTable() {
                   <td className="px-6 py-4 text-right text-secondary">₱{member.total_paid.toFixed(2)}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {member.status === 'active' && !isExpired && (
-                        <Button 
-                          variant="secondary" 
-                          className="px-3 py-1.5 h-auto text-[10px] uppercase tracking-wider text-accent-secondary border-accent-secondary/50 hover:bg-accent-secondary/10"
-                          onClick={async () => {
-                            const todayStr = new Date().toISOString().split('T')[0]
-                            const { error } = await supabase
-                              .from('attendance')
-                              .insert({
-                                member_id: member.id,
-                                check_in_date: todayStr
-                              })
-                            
-                            if (error) {
-                              if (error.code === '23505') {
-                                alert("Already checked in today.")
-                              } else {
-                                alert("Check-in failed.")
-                              }
-                            } else {
-                              window.location.reload() // Simple refresh to update count
-                            }
-                          }}
-                        >
-                          Check-in
-                        </Button>
-                      )}
                       <Link href={`/members/${member.id}`}>
                         <Button variant="secondary" className="px-3 py-1.5 h-auto text-[10px] uppercase tracking-wider">
                           View

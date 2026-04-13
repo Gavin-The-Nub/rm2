@@ -9,6 +9,7 @@ import { format } from "date-fns"
 import { ArrowLeft, User, Calendar, Clock, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { RenewModal } from "./RenewModal"
+import { memberStatusBadgeVariant, memberStatusLabel } from "@/lib/memberSubscription"
 
 type MemberProfileProps = {
   member: any
@@ -40,39 +41,8 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
     setSuspendLoading(false)
   }
 
-  const handleCheckIn = async () => {
-    const todayStr = new Date().toISOString().split('T')[0]
-    const { error } = await supabase
-      .from('attendance')
-      .insert({
-        member_id: member.id,
-        check_in_date: todayStr
-      })
-    
-    if (error) {
-      if (error.code === '23505') {
-        alert("Member already checked in today.")
-      } else {
-        alert("Failed to record attendance.")
-      }
-    } else {
-      onUpdate()
-    }
-  }
-
-  const getStatusColor = (status: string, endDate: string) => {
-    if (status === 'suspended') return 'suspended'
-    if (status === 'cancelled') return 'negative'
-    if (new Date(endDate) < new Date(new Date().setHours(0,0,0,0))) return 'expired'
-    return 'active'
-  }
-
-  const getDisplayStatus = (status: string, endDate: string) => {
-    if (status === 'suspended') return 'Suspended'
-    if (status === 'cancelled') return 'Cancelled'
-    if (new Date(endDate) < new Date(new Date().setHours(0,0,0,0))) return 'Expired'
-    return 'Active'
-  }
+  const statusLabel = memberStatusLabel(member)
+  const statusBadgeVariant = memberStatusBadgeVariant(member)
 
   // Derived stats mock (Since complex aggregation is handled in a broader component)
   const visits = member.attendance?.length || 0
@@ -89,15 +59,6 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
           </Button>
         </Link>
         <div className="flex items-center gap-3">
-          {getDisplayStatus(member.status, member.end_date) === 'Active' && (
-            <Button 
-              variant="secondary" 
-              className="text-accent-secondary border-accent-secondary/50 hover:bg-accent-secondary/10"
-              onClick={handleCheckIn}
-            >
-              Check In
-            </Button>
-          )}
           <Button 
             variant="secondary" 
             className={member.status === 'suspended' ? "text-accent-secondary border-accent-secondary/50 hover:bg-accent-secondary/10" : "text-accent-warning border-accent-warning/50 hover:bg-accent-warning/10"}
@@ -118,10 +79,15 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
         <div className="lg:col-span-1 flex flex-col gap-6">
           <Card className="flex flex-col items-center text-center p-8 border border-white/5 relative overflow-hidden">
             {/* Status indicator ring around photo */}
-            <div className={`relative mb-6 rounded-full p-1 ring-2 ${
-              getDisplayStatus(member.status, member.end_date) === 'Active' ? 'ring-accent-secondary' : 
-              getDisplayStatus(member.status, member.end_date) === 'Suspended' ? 'ring-accent-warning' : 'ring-accent-danger'
-            }`}>
+            <div
+              className={`relative mb-6 rounded-full p-1 ring-2 ${
+                statusLabel === "Active"
+                  ? "ring-accent-secondary"
+                  : statusLabel === "Suspended" || statusLabel === "Expiring soon"
+                    ? "ring-accent-warning"
+                    : "ring-accent-danger"
+              }`}
+            >
               <div className="w-24 h-24 rounded-full overflow-hidden bg-input/50 flex items-center justify-center">
                 {member.photo_url ? (
                   <img src={member.photo_url} alt={member.name} className="w-full h-full object-cover" />
@@ -134,10 +100,14 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
             <h2 className="text-2xl font-bold text-primary mb-1">{member.name}</h2>
             {member.email && <p className="text-secondary text-sm mb-4">{member.email}</p>}
             
-            <Badge variant={getStatusColor(member.status, member.end_date) as any} className="mb-6 px-3 py-1">
+            <Badge variant={statusBadgeVariant} className="mb-6 px-3 py-1">
               <div className="flex items-center gap-1">
-                {(getDisplayStatus(member.status, member.end_date) === 'Expired' || getDisplayStatus(member.status, member.end_date) === 'Cancelled') && <AlertCircle className="w-3.5 h-3.5" />}
-                {getDisplayStatus(member.status, member.end_date)}
+                {(statusLabel === "Expired" ||
+                  statusLabel === "Cancelled" ||
+                  statusLabel === "Expiring soon") && (
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                )}
+                {statusLabel}
               </div>
             </Badge>
 

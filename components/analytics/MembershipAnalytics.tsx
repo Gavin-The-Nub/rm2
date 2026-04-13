@@ -2,20 +2,18 @@ import React from "react"
 import { StatCard } from "@/components/dashboard/StatCard"
 import { createClient } from "@supabase/supabase-js"
 import MembershipCharts from "@/components/analytics/MembershipCharts"
-import { getRangeDates } from "@/utils/date-filters"
+import type { ChartPeriodBounds } from "@/utils/date-filters"
 
-async function getMembershipData(range: string) {
+async function getMembershipData(period: ChartPeriodBounds) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const now = new Date()
-  const { startDate, endDate } = getRangeDates(range)
-
-  const rangeMs = now.getTime() - new Date(startDate).getTime()
-  const prevEnd   = new Date(new Date(startDate).getTime() - 1).toISOString().split("T")[0]
-  const prevStart = new Date(new Date(startDate).getTime() - rangeMs - 1).toISOString().split("T")[0]
+  const { startDate, endDate, prevStart, prevEnd } = period
+  const rangeStartMs = new Date(startDate + "T00:00:00").getTime()
+  const rangeEndMs = new Date(endDate + "T00:00:00").getTime()
+  const rangeMs = rangeEndMs - rangeStartMs
 
   // All members (for status breakdown & type distribution)
   const { data: allMembers } = await supabase
@@ -79,15 +77,16 @@ async function getMembershipData(range: string) {
   if (useWeekBuckets) {
     const numWeeks = Math.ceil(days / 7)
     for (let i = 0; i < numWeeks; i++) newByPeriod[`Wk ${i + 1}`] = 0
-    const rangeStart = new Date(startDate)
+    const rangeStart = new Date(startDate + "T00:00:00")
     ;(newThisPeriod || []).forEach((m) => {
       const d = new Date(m.created_at)
       const wk = Math.min(Math.floor((d.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24 * 7)), numWeeks - 1)
       newByPeriod[`Wk ${wk + 1}`]++
     })
   } else {
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
+    const dayMs = 24 * 60 * 60 * 1000
+    for (let i = 0; i < days; i++) {
+      const d = new Date(rangeStartMs + i * dayMs)
       const key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
       newByPeriod[key] = 0
     }
@@ -122,7 +121,7 @@ async function getMembershipData(range: string) {
   const numWeeks = Math.min(Math.ceil(days / 7), 4)
   const weekBuckets = Array.from({ length: numWeeks }, (_, i) => `Wk ${i + 1}`)
   const statusByWeek = weekBuckets.map((week) => ({ week, Active: 0, Expired: 0, Suspended: 0 }))
-  const rangeStart = new Date(startDate)
+  const rangeStart = new Date(startDate + "T00:00:00")
   ;(allMembers || []).forEach((m) => {
     if (m.created_at >= startDate + "T00:00:00" && m.created_at <= endDate + "T23:59:59") {
       const d = new Date(m.created_at)
@@ -150,8 +149,8 @@ async function getMembershipData(range: string) {
   }
 }
 
-export async function MembershipAnalytics({ range = "30d" }: { range?: string }) {
-  const data = await getMembershipData(range)
+export async function MembershipAnalytics({ period }: { period: ChartPeriodBounds }) {
+  const data = await getMembershipData(period)
 
   return (
     <div className="flex flex-col gap-6">

@@ -2,7 +2,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: "active" | "expired" | "suspended" | "1day" | "weekly" | "monthly" | "neutral" | "positive" | "negative";
+  variant?: "active" | "expired" | "expiring_soon" | "suspended" | "1day" | "weekly" | "monthly" | "neutral" | "positive" | "negative";
 }
 
 export function Badge({ className, variant = "neutral", ...props }: BadgeProps) {
@@ -14,6 +14,8 @@ export function Badge({ className, variant = "neutral", ...props }: BadgeProps) 
       case "expired":
       case "negative":
         return "bg-[#FF453A]/20 text-[#FF453A] border-[#FF453A]/20 shadow-[0_0_12px_rgba(255,69,58,0.2)]"
+      case "expiring_soon":
+        return "bg-[#F97316]/20 text-[#F97316] border-[#F97316]/25 shadow-[0_0_12px_rgba(249,115,22,0.22)]"
       case "suspended":
         return "bg-[#FF9F0A]/20 text-[#FF9F0A] border-[#FF9F0A]/20 shadow-[0_0_12px_rgba(255,159,10,0.2)]"
       case "1day":

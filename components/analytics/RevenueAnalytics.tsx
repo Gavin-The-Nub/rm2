@@ -3,21 +3,17 @@ import { StatCard } from "@/components/dashboard/StatCard"
 import { Card } from "@/components/ui/Card"
 import { createClient } from "@supabase/supabase-js"
 import RevenueCharts from "@/components/analytics/RevenueCharts"
-import { getRangeDates } from "@/utils/date-filters"
+import type { ChartPeriodBounds } from "@/utils/date-filters"
 
-async function getRevenueData(range: string) {
+async function getRevenueData(period: ChartPeriodBounds) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const now = new Date()
-  const { startDate, endDate } = getRangeDates(range)
-
-  // Previous period = same number of days just before startDate
-  const rangeMs = now.getTime() - new Date(startDate).getTime()
-  const prevEnd  = new Date(new Date(startDate).getTime() - 1).toISOString().split("T")[0]
-  const prevStart = new Date(new Date(startDate).getTime() - rangeMs - 1).toISOString().split("T")[0]
+  const { startDate, endDate, prevStart, prevEnd } = period
+  const rangeStartMs = new Date(startDate + "T00:00:00").getTime()
+  const rangeEndMs = new Date(endDate + "T00:00:00").getTime()
 
   // Fetch new member payments (current period)
   const { data: newMembersThis } = await supabase
@@ -68,7 +64,7 @@ async function getRevenueData(range: string) {
 
   // --- Revenue Over Time (daily buckets across the period) ---
   // Show up to last 14 days of the range for readability; bucket into weeks for longer ranges
-  const days = Math.round((now.getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
+  const days = Math.round((rangeEndMs - rangeStartMs) / (1000 * 60 * 60 * 24)) + 1
   const useWeekBuckets = days > 14
 
   const revenueByDay: Record<string, { newMembers: number; renewals: number }> = {}
@@ -78,7 +74,7 @@ async function getRevenueData(range: string) {
     for (let i = 0; i < Math.ceil(days / 7); i++) {
       revenueByDay[`Wk ${i + 1}`] = { newMembers: 0, renewals: 0 }
     }
-    const rangeStart = new Date(startDate)
+    const rangeStart = new Date(startDate + "T00:00:00")
     ;(newMembersThis || []).forEach((m) => {
       const d = new Date(m.created_at)
       const wk = Math.floor((d.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24 * 7))
@@ -93,8 +89,9 @@ async function getRevenueData(range: string) {
     })
   } else {
     // Daily: show each day label as "Apr 7"
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
+    const dayMs = 24 * 60 * 60 * 1000
+    for (let i = 0; i < days; i++) {
+      const d = new Date(rangeStartMs + i * dayMs)
       const key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
       revenueByDay[key] = { newMembers: 0, renewals: 0 }
     }
@@ -152,7 +149,7 @@ async function getRevenueData(range: string) {
   const currentWeeks = new Array(numWeeks).fill(0)
   const previousWeeks = new Array(numWeeks).fill(0)
 
-  const rangeStart = new Date(startDate)
+  const rangeStart = new Date(startDate + "T00:00:00")
   ;(newMembersThis || []).forEach((m) => {
     const d = new Date(m.created_at)
     const wi = Math.min(Math.floor((d.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24 * 7)), numWeeks - 1)
@@ -163,7 +160,7 @@ async function getRevenueData(range: string) {
     const wi = Math.min(Math.floor((d.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24 * 7)), numWeeks - 1)
     currentWeeks[wi] += Number(r.amount || 0)
   })
-  const prevStart2 = new Date(prevStart)
+  const prevStart2 = new Date(prevStart + "T00:00:00")
   ;(newMembersPrev || []).forEach((m) => {
     const d = new Date(m.created_at)
     const wi = Math.min(Math.floor((d.getTime() - prevStart2.getTime()) / (1000 * 60 * 60 * 24 * 7)), numWeeks - 1)
@@ -195,8 +192,8 @@ async function getRevenueData(range: string) {
   }
 }
 
-export async function RevenueAnalytics({ range = "30d" }: { range?: string }) {
-  const data = await getRevenueData(range)
+export async function RevenueAnalytics({ period }: { period: ChartPeriodBounds }) {
+  const data = await getRevenueData(period)
 
   return (
     <div className="flex flex-col gap-6">

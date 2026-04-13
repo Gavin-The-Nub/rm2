@@ -2,28 +2,47 @@
 
 import React, { useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { 
-  Home, 
-  Users, 
-  BarChart2, 
+import { usePathname, useRouter } from "next/navigation"
+import {
+  Home,
+  Users,
+  BarChart2,
   Settings,
   ChevronLeft,
   ChevronRight,
-  Dumbbell
+  Dumbbell,
+  LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { supabase } from "@/utils/supabase/client"
+import type { AppRole } from "@/lib/auth/roles"
 
-const navItems = [
-  { name: "Dashboard", href: "/", icon: Home },
-  { name: "Members", href: "/members", icon: Users },
-  { name: "Analytics", href: "/analytics", icon: BarChart2 },
-  { name: "Settings", href: "/settings", icon: Settings },
+const allNavItems = [
+  { name: "Dashboard", href: "/", icon: Home, roles: ["admin"] as AppRole[] },
+  { name: "Members", href: "/members", icon: Users, roles: ["admin", "staff"] },
+  { name: "Analytics", href: "/analytics", icon: BarChart2, roles: ["admin"] },
+  { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
 ]
 
-export function Sidebar({ children }: { children: React.ReactNode }) {
+export function Sidebar({
+  children,
+  userEmail,
+  role,
+}: {
+  children: React.ReactNode
+  userEmail: string | null
+  role: AppRole
+}) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
+  const navItems = allNavItems.filter((item) => item.roles.includes(role))
+
+  const signOut = async () => {
+    await supabase.auth.signOut()
+    router.push("/login")
+    router.refresh()
+  }
 
   return (
     <div className="flex h-screen w-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)] overflow-hidden">
@@ -74,9 +93,31 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
                 <item.icon size={20} className={cn(isActive && "text-[#0A84FF]")} />
                 {!isCollapsed && <span className="text-sm font-medium tracking-wide">{item.name}</span>}
               </Link>
-            )
+                       )
           })}
         </nav>
+
+        <div className="border-t border-white/[0.04] p-2 space-y-1 shrink-0">
+          {!isCollapsed && userEmail && (
+            <p className="px-3 text-xs text-white/40 truncate" title={userEmail}>
+              {userEmail}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={signOut}
+            title={isCollapsed ? "Sign out" : undefined}
+            className={cn(
+              "flex items-center h-12 w-full relative transition-all duration-300 rounded-xl text-[var(--color-text-secondary)] hover:text-white hover:bg-white/[0.04]",
+              isCollapsed ? "justify-center px-0" : "px-3 gap-3"
+            )}
+          >
+            <LogOut size={20} />
+            {!isCollapsed && (
+              <span className="text-sm font-medium tracking-wide">Sign out</span>
+            )}
+          </button>
+        </div>
       </aside>
 
       {/* Main Content Area */}
@@ -87,14 +128,14 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Mobile Bottom Tab Bar */}
-      <nav className="md:hidden fixed bottom-4 left-4 right-4 h-16 bg-white/[0.05] border border-white/[0.05] backdrop-blur-[30px] rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex items-center justify-around z-50 overflow-hidden">
+      <nav className="md:hidden fixed bottom-4 left-4 right-4 min-h-16 px-1 py-1 bg-white/[0.05] border border-white/[0.05] backdrop-blur-[30px] rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex items-center justify-around z-50 overflow-hidden gap-1">
         {navItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))
           return (
             <Link
               key={item.href}
               href={item.href}
-              className="flex flex-col items-center justify-center w-full h-full relative text-white/50 transition-colors"
+              className="flex flex-col items-center justify-center flex-1 min-w-0 h-14 relative text-white/50 transition-colors"
             >
               <item.icon size={24} className={cn(isActive && "text-[#0A84FF]", "transition-all", isActive && "-translate-y-1")} />
               {isActive && (
@@ -103,6 +144,14 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
             </Link>
           )
         })}
+        <button
+          type="button"
+          onClick={signOut}
+          aria-label="Sign out"
+          className="flex flex-col items-center justify-center flex-1 min-w-0 h-14 relative text-white/50 hover:text-white/80 transition-colors"
+        >
+          <LogOut size={24} />
+        </button>
       </nav>
     </div>
   )

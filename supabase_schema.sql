@@ -54,3 +54,38 @@ ALTER TABLE public.renewals ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow anon read/write access to members" ON public.members FOR ALL USING (true);
 CREATE POLICY "Allow anon read/write access to attendance" ON public.attendance FOR ALL USING (true);
 CREATE POLICY "Allow anon read/write access to renewals" ON public.renewals FOR ALL USING (true);
+
+-- Staff portal roles (linked to Supabase Auth)
+CREATE TABLE public.profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT 'staff' CHECK (role IN ('admin', 'staff')),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_profiles_role ON public.profiles(role);
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read own profile"
+    ON public.profiles FOR SELECT
+    USING (auth.uid() = id);
+
+-- New auth users default to staff; promote admins in SQL Editor:
+-- UPDATE public.profiles SET role = 'admin' WHERE id = '<user-uuid>';
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    INSERT INTO public.profiles (id, role)
+    VALUES (NEW.id, 'staff');
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW
+    EXECUTE PROCEDURE public.handle_new_user();

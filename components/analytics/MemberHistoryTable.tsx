@@ -2,21 +2,13 @@ import React from "react"
 import { Card } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
 import { createClient } from "@supabase/supabase-js"
+import type { AnalyticsTablesFilter } from "@/utils/date-filters"
 
-const MONTHS = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December"
-]
-
-async function getMemberHistory(month: number | null, year: number | null) {
+async function getMemberHistory(tables: AnalyticsTablesFilter) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
-
-  const now = new Date()
-  const filterMonth = month ?? now.getMonth() + 1
-  const filterYear  = year  ?? (month ? now.getFullYear() : null)
 
   let query = supabase
     .from("members")
@@ -27,15 +19,10 @@ async function getMemberHistory(month: number | null, year: number | null) {
     .order("created_at", { ascending: false })
     .limit(50)
 
-  if (filterYear && month) {
-    const startDate = `${filterYear}-${String(filterMonth).padStart(2, "0")}-01`
-    const endDay    = new Date(filterYear, filterMonth, 0).getDate()
-    const endDate   = `${filterYear}-${String(filterMonth).padStart(2, "0")}-${String(endDay).padStart(2, "0")}`
-    query = query.gte("created_at", startDate + "T00:00:00").lte("created_at", endDate + "T23:59:59")
-  } else if (filterYear && !month) {
+  if (tables.mode === "range") {
     query = query
-      .gte("created_at", `${filterYear}-01-01T00:00:00`)
-      .lte("created_at", `${filterYear}-12-31T23:59:59`)
+      .gte("created_at", tables.startDate + "T00:00:00")
+      .lte("created_at", tables.endDate + "T23:59:59")
   }
 
   const { data: members, count } = await query
@@ -113,22 +100,13 @@ async function getMemberHistory(month: number | null, year: number | null) {
 }
 
 export async function MemberHistoryTable({
-  month,
-  year,
+  tables,
+  periodLabel,
 }: {
-  month: number | null
-  year: number | null
+  tables: AnalyticsTablesFilter
+  periodLabel: string
 }) {
-  const { rows, total } = await getMemberHistory(month, year)
-
-  const now = new Date()
-  const filterMonth = month ?? now.getMonth() + 1
-  const filterYear  = year  ?? now.getFullYear()
-  const periodLabel = month
-    ? `${MONTHS[filterMonth - 1]} ${filterYear}`
-    : year
-    ? `${filterYear}`
-    : "All Time"
+  const { rows, total } = await getMemberHistory(tables)
 
   return (
     <Card className="flex flex-col">

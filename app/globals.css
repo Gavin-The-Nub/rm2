@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Native selects/options follow OS theme unless we pin dark UI; without this,
+   Windows/Chrome often shows a light dropdown with inherited white text. */
+:root {
+  color-scheme: dark;
+}
+
 @theme {
   --color-bg-base: #000000;
   --color-bg-card: rgba(30, 30, 30, 0.4);
@@ -19,6 +25,11 @@
   --color-chart-2: #30D158;
   --color-chart-3: #FF9F0A;
   --color-chart-4: #BF5AF2; /* iOS Purple */
+}
+
+select option {
+  background-color: #1c1c1e;
+  color: #ffffff;
 }
 
 body {
