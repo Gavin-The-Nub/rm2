@@ -3,7 +3,7 @@ import { MiniChart } from "@/components/dashboard/MiniChart"
 import { WeeklySalesChart } from "@/components/dashboard/WeeklyCharts"
 import { createClient } from "@/utils/supabase/server"
 import { startOfDay, startOfMonth, subDays, format, isAfter, parseISO, isSameDay } from "date-fns"
-import { memberSubscriptionCategory } from "@/lib/memberSubscription"
+import { isSubscriptionCountedActive, memberSubscriptionCategory } from "@/lib/memberSubscription"
 
 // Ensure dynamic rendering because we fetch live database
 export const dynamic = 'force-dynamic'
@@ -21,7 +21,7 @@ export default async function Dashboard() {
   const thisMonthStart = startOfMonth(today)
   
   // Keep status logic aligned with Members page (considers end_date + raw status)
-  const activeMembers = members.filter((m) => memberSubscriptionCategory(m) === "active")
+  const activeMembers = members.filter((m) => isSubscriptionCountedActive(m))
   const totalActiveMembers = activeMembers.length
 
   // Today's New Members

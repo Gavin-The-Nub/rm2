@@ -1,3 +1,5 @@
+import { phDateISOFromDate, phTodayISO, parseISODateAtPHMidnight } from "@/lib/phTime"
+
 export const RANGES = [
   { value: "7d",   label: "Last 7 Days" },
   { value: "30d",  label: "Last 30 Days" },
@@ -14,15 +16,15 @@ const MONTH_NAMES = [
 
 /** Derives startDate / endDate ISO strings from a range code */
 export function getRangeDates(range: string): { startDate: string; endDate: string } {
-  const now = new Date()
-  const endDate = now.toISOString().split("T")[0]
+  const endDate = phTodayISO()
   let days = 30
   if (range === "7d")   days = 7
   if (range === "30d")  days = 30
   if (range === "90d")  days = 90
   if (range === "365d") days = 365
-  const start = new Date(now.getTime() - (days - 1) * 24 * 60 * 60 * 1000)
-  const startDate = start.toISOString().split("T")[0]
+  const endPH = parseISODateAtPHMidnight(endDate)
+  const start = new Date(endPH.getTime() - (days - 1) * 24 * 60 * 60 * 1000)
+  const startDate = phDateISOFromDate(start)
   return { startDate, endDate }
 }
 
@@ -52,11 +54,11 @@ export type ResolvedAnalyticsPeriod = {
 }
 
 function rollingPrevPeriod(startDate: string): { prevStart: string; prevEnd: string } {
-  const now = new Date()
-  const startMs = new Date(startDate + "T00:00:00").getTime()
-  const rangeMs = now.getTime() - startMs
-  const prevEnd = new Date(startMs - 86400000).toISOString().split("T")[0]
-  const prevStart = new Date(startMs - rangeMs - 86400000).toISOString().split("T")[0]
+  const nowPH = parseISODateAtPHMidnight(phTodayISO())
+  const startMs = parseISODateAtPHMidnight(startDate).getTime()
+  const rangeMs = nowPH.getTime() - startMs
+  const prevEnd = phDateISOFromDate(new Date(startMs - 86400000))
+  const prevStart = phDateISOFromDate(new Date(startMs - rangeMs - 86400000))
   return { prevStart, prevEnd }
 }
 
@@ -72,7 +74,7 @@ export function resolveAnalyticsPeriod(params: {
   month: number | null
   year: number | null
 }): ResolvedAnalyticsPeriod {
-  const now = new Date()
+  const now = parseISODateAtPHMidnight(phTodayISO())
   const legacy = params.range && PRESET_VALUES.has(params.range) ? params.range : null
   const preset =
     (params.preset && PRESET_VALUES.has(params.preset) ? params.preset : null) || legacy

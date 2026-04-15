@@ -1,17 +1,25 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { supabase } from "@/utils/supabase/client"
 import { Card } from "@/components/ui/Card"
 import { Input } from "@/components/ui/Input"
 import { Button } from "@/components/ui/Button"
 import { X, Loader2 } from "lucide-react"
 import { DEFAULT_PRICING, type MonthlyPlan, type PricingConfig } from "@/lib/pricing"
+import { addDaysISOInPH, phTodayISO } from "@/lib/phTime"
 
 type RenewModalProps = {
   isOpen: boolean
   onClose: () => void
-  member: any
+  member: {
+    id: string
+    name?: string | null
+    end_date: string
+    status?: string | null
+    membership_type?: "1_day" | "weekly" | "monthly" | null
+    payment_amount?: number | null
+  } | null
   onUpdate: () => void
 }
 
@@ -47,20 +55,20 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
     void loadPricing()
   }, [])
 
-  const getDefaultPayment = (
+  const getDefaultPayment = useCallback((
     membershipType: "1_day" | "weekly" | "monthly",
     plan: MonthlyPlan
   ) => {
     if (membershipType === "1_day") return String(pricing.session)
     if (membershipType === "weekly") return String(pricing.weekly)
     return String(plan === "student" ? pricing.monthlyStudent : pricing.monthlyRegular)
-  }
+  }, [pricing])
 
-  const inferMonthlyPlan = (amount: number): MonthlyPlan => {
+  const inferMonthlyPlan = useCallback((amount: number): MonthlyPlan => {
     const studentDiff = Math.abs(amount - pricing.monthlyStudent)
     const regularDiff = Math.abs(amount - pricing.monthlyRegular)
     return studentDiff <= regularDiff ? "student" : "regular"
-  }
+  }, [pricing])
 
   useEffect(() => {
     if (!isOpen || !member) return
@@ -76,7 +84,23 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
         ? String(member.payment_amount)
         : getDefaultPayment(nextType, nextPlan)
     )
-  }, [isOpen, member, pricing])
+  }, [getDefaultPayment, inferMonthlyPlan, isOpen, member, pricing.monthlyRegular])
+
+  const computeNewEndISO = useCallback((duration: "1_day" | "weekly" | "monthly", baseISO: string) => {
+    if (!baseISO) return ""
+    if (duration === "1_day") return addDaysISOInPH(baseISO, 1)
+    if (duration === "weekly") return addDaysISOInPH(baseISO, 7)
+    return addDaysISOInPH(baseISO, 30)
+  }, [])
+
+  const { baseDateISO, newEndISO } = useMemo(() => {
+    const today = phTodayISO()
+    const currentEnd = member?.end_date ?? ""
+    const isActiveAndNotExpired = member?.status === "active" && currentEnd && currentEnd >= today
+    const baseISO = isActiveAndNotExpired ? currentEnd : today
+    const next = computeNewEndISO(type, baseISO)
+    return { baseDateISO: baseISO, newEndISO: next }
+  }, [computeNewEndISO, member?.end_date, member?.status, type])
 
   if (!isOpen || !member) return null
 
@@ -97,33 +121,16 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
     setLoading(true)
 
     try {
-      const today = new Date().setHours(0,0,0,0)
-      const currentEnd = new Date(member.end_date).getTime()
-      
-      // Calculate new end date
-      let baseDate = new Date() // Default to today if expired
-      
-      // If currently active, extend from their current end date
-      if (currentEnd > today && member.status === 'active') {
-        baseDate = new Date(member.end_date)
-      }
-
-      const newEndDate = new Date(baseDate)
-      
-      if (type === "1_day") {
-        newEndDate.setDate(baseDate.getDate()) // End of the same day
-      } else if (type === "weekly") {
-        newEndDate.setDate(baseDate.getDate() + 7)
-      } else if (type === "monthly") {
-        newEndDate.setDate(baseDate.getDate() + 30)
-      }
+      const nextEndISO = computeNewEndISO(type, baseDateISO)
+      if (!nextEndISO) throw new Error("Missing end date")
 
       // 1. Update the member record
       const updatePromise = supabase
         .from('members')
         .update({ 
-          end_date: newEndDate.toISOString().split('T')[0],
+          end_date: nextEndISO,
           membership_type: type, // Support upgrading/downgrading
+          payment_amount: Number(payment), // Keep current paid value aligned with renewal type/value
           status: 'active'       // Ensure they are active if they were expired
         })
         .eq('id', member.id)
@@ -135,7 +142,7 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
           member_id: member.id,
           membership_type: type,
           previous_end_date: member.end_date,
-          new_end_date: newEndDate.toISOString().split('T')[0],
+          new_end_date: nextEndISO,
           payment_amount: Number(payment)
         })
 
@@ -147,8 +154,9 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
       onUpdate() // Refresh data
       onClose()
       
-    } catch (err: any) {
-      alert("Failed to renew membership: " + err.message)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      alert("Failed to renew membership: " + msg)
     } finally {
       setLoading(false)
     }
@@ -247,6 +255,10 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
             <div className="flex justify-between text-sm">
               <span className="text-muted">Current End Date:</span>
               <span className="text-secondary font-medium">{member.end_date}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted">New End Date:</span>
+              <span className="text-secondary font-medium">{newEndISO || "—"}</span>
             </div>
             <div className="text-xs text-accent-primary bg-accent-primary/10 p-2 rounded-lg mt-1 border border-accent-primary/20">
               Note: Renewing will extend the membership by the selected duration from the current end date (if active) or from today (if expired).

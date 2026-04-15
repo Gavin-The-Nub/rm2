@@ -3,7 +3,7 @@ import { StatCard } from "@/components/dashboard/StatCard"
 import { createClient } from "@supabase/supabase-js"
 import MembershipCharts from "@/components/analytics/MembershipCharts"
 import type { ChartPeriodBounds } from "@/utils/date-filters"
-import { memberSubscriptionCategory } from "@/lib/memberSubscription"
+import { isSubscriptionCountedActive, memberSubscriptionCategory } from "@/lib/memberSubscription"
 
 async function getMembershipData(period: ChartPeriodBounds) {
   const supabase = createClient(
@@ -109,7 +109,7 @@ async function getMembershipData(period: ChartPeriodBounds) {
     "1_month": "Monthly", "student_1_month": "Student",
   }
   const typeCounts: Record<string, number> = { "1_day": 0, "1_week": 0, "1_month": 0, "student_1_month": 0 }
-  ;(allMembers || []).filter((m) => memberSubscriptionCategory(m) === "active").forEach((m) => {
+  ;(allMembers || []).filter((m) => isSubscriptionCountedActive(m)).forEach((m) => {
     if (m.membership_type in typeCounts) typeCounts[m.membership_type]++
   })
   const membershipTypeDist = Object.entries(typeCounts).map(([type, value]) => ({
@@ -134,7 +134,7 @@ async function getMembershipData(period: ChartPeriodBounds) {
     }
   })
 
-  const totalActiveNow = (allMembers || []).filter((m) => memberSubscriptionCategory(m) === "active").length
+  const totalActiveNow = (allMembers || []).filter((m) => isSubscriptionCountedActive(m)).length
 
   return {
     newMembersCount,

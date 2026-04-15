@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { supabase } from "@/utils/supabase/client"
 import { Card } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
@@ -10,7 +10,9 @@ import { Search, Filter, Plus, User, AlertCircle, MoreVertical } from "lucide-re
 import Link from "next/link"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import { RenewModal } from "./RenewModal"
 import {
+  isSubscriptionCountedActive,
   memberSubscriptionCategory,
   memberStatusBadgeVariant,
   memberStatusLabel,
@@ -26,6 +28,8 @@ type MemberRow = {
   start_date: string
   end_date: string
   created_at: string
+  payment_amount: number
+  paid: number
   total_paid: number
 }
 
@@ -41,55 +45,69 @@ export function MembersTable() {
   const [showFilters, setShowFilters] = useState(false)
   const [membershipTypeFilter, setMembershipTypeFilter] = useState<MembershipTypeFilter>("all")
   const [membershipStatusFilter, setMembershipStatusFilter] = useState<MembershipStatusFilter>("all")
+  const [renewMember, setRenewMember] = useState<MemberRow | null>(null)
+  const [isRenewOpen, setIsRenewOpen] = useState(false)
 
-  useEffect(() => {
-    async function fetchMembers() {
-      setLoading(true)
-      // Query members and manually calculate the lifetime stats 
-      // since Supabase JS doesn't support complex aggregate joins well without a view.
-      // For MVP, we'll fetch members and a lightweight version of stats.
-      
-      const { data, error } = await supabase
-        .from('members')
-        .select(`
+  const fetchMembers = useCallback(async () => {
+    setLoading(true)
+    // Query members and manually calculate the lifetime stats
+    // since Supabase JS doesn't support complex aggregate joins well without a view.
+    // For MVP, we'll fetch members and a lightweight version of stats.
+    const { data, error } = await supabase
+      .from("members")
+      .select(
+        `
           id, name, email, photo_url, membership_type, status, start_date, end_date, created_at, payment_amount,
-          renewals ( payment_amount )
-        `)
-        .order('created_at', { ascending: false })
+          renewals ( payment_amount, created_at )
+        `
+      )
+      .order("created_at", { ascending: false })
 
-      if (error) {
-        console.error("Error fetching members:", error)
-        setLoading(false)
-        return
-      }
-
-      // Map and aggregate
-      const formattedData: MemberRow[] = data.map((m: any) => {
-        // Calculate total paid
-        const basePayment = Number(m.payment_amount) || 0
-        const renewals = m.renewals || []
-        const totalRenewals = renewals.reduce((sum: number, r: any) => sum + (Number(r.payment_amount) || 0), 0)
-
-        return {
-          id: m.id,
-          name: m.name,
-          email: m.email,
-          photo_url: m.photo_url,
-          membership_type: m.membership_type,
-          status: m.status,
-          start_date: m.start_date,
-          end_date: m.end_date,
-          created_at: m.created_at,
-          total_paid: basePayment + totalRenewals,
-        }
-      })
-
-      setMembers(formattedData)
+    if (error) {
+      console.error("Error fetching members:", error)
       setLoading(false)
+      return
     }
 
-    fetchMembers()
+    // Map and aggregate
+    const formattedData: MemberRow[] = (data ?? []).map((m: any) => {
+      const basePayment = Number(m.payment_amount) || 0
+      const renewals = Array.isArray(m.renewals) ? m.renewals : []
+      const renewalsByNewest = [...renewals].sort((a: any, b: any) => {
+        const aTime = a?.created_at ? new Date(a.created_at).getTime() : 0
+        const bTime = b?.created_at ? new Date(b.created_at).getTime() : 0
+        return bTime - aTime
+      })
+      const totalRenewals = renewals.reduce(
+        (sum: number, r: any) => sum + (Number(r.payment_amount) || 0),
+        0
+      )
+      const latestRenewal = renewalsByNewest[0] ?? null
+      const paid = latestRenewal ? (Number(latestRenewal.payment_amount) || 0) : basePayment
+
+      return {
+        id: m.id,
+        name: m.name,
+        email: m.email,
+        photo_url: m.photo_url,
+        membership_type: m.membership_type,
+        status: m.status,
+        start_date: m.start_date,
+        end_date: m.end_date,
+        created_at: m.created_at,
+        payment_amount: basePayment,
+        paid,
+        total_paid: basePayment + totalRenewals,
+      }
+    })
+
+    setMembers(formattedData)
+    setLoading(false)
   }, [])
+
+  useEffect(() => {
+    void fetchMembers()
+  }, [fetchMembers])
 
   const searchFiltered = members.filter(
     (m) =>
@@ -99,16 +117,41 @@ export function MembersTable() {
 
   const tabCounts = {
     all: members.length,
-    active: members.filter((m) => memberSubscriptionCategory(m) === "active").length,
+    active: members.filter((m) => isSubscriptionCountedActive(m)).length,
     expiring_soon: members.filter((m) => memberSubscriptionCategory(m) === "expiring_soon").length,
     expired: members.filter((m) => memberSubscriptionCategory(m) === "expired").length,
   }
 
   const filteredMembers = searchFiltered.filter((m) => {
-    const matchesTab = tab === "all" ? true : memberSubscriptionCategory(m) === tab
+    const matchesTab =
+      tab === "all"
+        ? true
+        : tab === "active"
+          ? isSubscriptionCountedActive(m)
+          : memberSubscriptionCategory(m) === tab
     const matchesMembershipType = membershipTypeFilter === "all" ? true : m.membership_type === membershipTypeFilter
-    const matchesStatus = membershipStatusFilter === "all" ? true : memberSubscriptionCategory(m) === membershipStatusFilter
+    const matchesStatus =
+      membershipStatusFilter === "all"
+        ? true
+        : membershipStatusFilter === "active"
+          ? isSubscriptionCountedActive(m)
+          : memberSubscriptionCategory(m) === membershipStatusFilter
     return matchesTab && matchesMembershipType && matchesStatus
+  })
+
+  const subscriptionSortPriority: Record<string, number> = {
+    active: 0,
+    expiring_soon: 1,
+    expired: 2,
+    other: 3,
+  }
+
+  const sortedMembers = [...filteredMembers].sort((a, b) => {
+    const aPriority = subscriptionSortPriority[memberSubscriptionCategory(a)] ?? 99
+    const bPriority = subscriptionSortPriority[memberSubscriptionCategory(b)] ?? 99
+
+    if (aPriority !== bPriority) return aPriority - bPriority
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
 
   const tabs: { id: MembersTab; label: string }[] = [
@@ -128,7 +171,8 @@ export function MembersTable() {
   }
 
   return (
-    <Card className="flex flex-col h-full overflow-hidden p-0 border border-white/5">
+    <>
+      <Card className="flex flex-col h-full overflow-hidden p-0 border border-white/5">
       <div className="p-4 border-b border-white/5 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
@@ -242,20 +286,21 @@ export function MembersTable() {
               <th className="px-6 py-4">Type</th>
               <th className="px-6 py-4">End Date</th>
               <th className="px-6 py-4 text-right">Paid</th>
+              <th className="px-6 py-4 text-right">Total Paid</th>
               <th className="px-6 py-4"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-muted">Loading members...</td>
+                <td colSpan={7} className="px-6 py-8 text-center text-muted">Loading members...</td>
               </tr>
-            ) : filteredMembers.length === 0 ? (
+            ) : sortedMembers.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-muted">No members found.</td>
+                <td colSpan={7} className="px-6 py-8 text-center text-muted">No members found.</td>
               </tr>
             ) : (
-              filteredMembers.map((member) => {
+              sortedMembers.map((member) => {
                 const cat = memberSubscriptionCategory(member)
                 const isExpired = cat === "expired"
                 const isCancelled = member.status === "cancelled"
@@ -304,14 +349,21 @@ export function MembersTable() {
                   )}>
                     {format(new Date(member.end_date), 'MMM d, yyyy')}
                   </td>
+                  <td className="px-6 py-4 text-right text-secondary">₱{member.paid.toFixed(2)}</td>
                   <td className="px-6 py-4 text-right text-secondary">₱{member.total_paid.toFixed(2)}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Link href={`/members/${member.id}?renew=1`}>
-                        <Button variant="secondary" className="px-3 py-1.5 h-auto text-[10px] uppercase tracking-wider">
-                          Renew
-                        </Button>
-                      </Link>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="px-3 py-1.5 h-auto text-[10px] uppercase tracking-wider"
+                        onClick={() => {
+                          setRenewMember(member)
+                          setIsRenewOpen(true)
+                        }}
+                      >
+                        Renew
+                      </Button>
                       <Link href={`/members/${member.id}`}>
                         <Button variant="secondary" className="px-3 py-1.5 h-auto text-[10px] uppercase tracking-wider">
                           View
@@ -327,5 +379,16 @@ export function MembersTable() {
         </table>
       </div>
     </Card>
+
+    <RenewModal
+      isOpen={isRenewOpen}
+      onClose={() => {
+        setIsRenewOpen(false)
+        setRenewMember(null)
+      }}
+      member={renewMember}
+      onUpdate={() => void fetchMembers()}
+    />
+    </>
   )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { supabase } from "@/utils/supabase/client"
 import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/Badge"
 import { format } from "date-fns"
 import { ArrowLeft, User, Calendar, Clock, Loader2, AlertCircle, Mail } from "lucide-react"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { RenewModal } from "./RenewModal"
 import { memberStatusBadgeVariant, memberStatusLabel } from "@/lib/memberSubscription"
 import {
@@ -23,35 +23,47 @@ type MemberProfileProps = {
 }
 
 export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
-  const [suspendLoading, setSuspendLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false)
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
 
-  useEffect(() => {
+  const isRenewFromUrl = searchParams.get("renew") === "1"
+  const renewModalOpen = isRenewModalOpen || isRenewFromUrl
+
+  const closeRenewModal = () => {
+    setIsRenewModalOpen(false)
+
+    // If the modal was opened via ?renew=1, remove it so it doesn't reopen.
     if (searchParams.get("renew") === "1") {
-      setIsRenewModalOpen(true)
+      const next = new URLSearchParams(searchParams.toString())
+      next.delete("renew")
+      const qs = next.toString()
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
     }
-  }, [searchParams])
+  }
 
-  const handleToggleSuspend = async () => {
-    setSuspendLoading(true)
-    const newStatus = member.status === 'suspended' ? 'active' : 'suspended'
-    
-    // Simple alert for now - in production use a proper toast
-    if (confirm(`Are you sure you want to ${newStatus === 'suspended' ? 'suspend' : 'reactivate'} this user?`)) {
-      const { error } = await supabase
-        .from('members')
-        .update({ status: newStatus })
-        .eq('id', member.id)
+  const handleDeleteAccount = async () => {
+    const confirmed = confirm("Are you sure you want to permanently delete this account? This cannot be undone.")
+    if (!confirmed) return
 
-      if (error) {
-        alert("Failed to update member status.")
-        console.error(error)
-      } else {
-        onUpdate() // Refresh data
-      }
+    setDeleteLoading(true)
+    const { error } = await supabase
+      .from("members")
+      .delete()
+      .eq("id", member.id)
+
+    if (error) {
+      alert("Failed to delete account.")
+      console.error(error)
+      setDeleteLoading(false)
+      return
     }
-    setSuspendLoading(false)
+
+    onUpdate()
+    router.push("/members")
+    router.refresh()
   }
 
   const statusLabel = memberStatusLabel(member)
@@ -72,12 +84,12 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
         <div className="flex items-center gap-3">
           <Button 
             variant="secondary" 
-            className={member.status === 'suspended' ? "text-accent-secondary border-accent-secondary/50 hover:bg-accent-secondary/10" : "text-accent-warning border-accent-warning/50 hover:bg-accent-warning/10"}
-            onClick={handleToggleSuspend}
-            disabled={suspendLoading}
+            className="text-accent-danger border-accent-danger/50 hover:bg-accent-danger/10"
+            onClick={handleDeleteAccount}
+            disabled={deleteLoading}
           >
-            {suspendLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            {member.status === 'suspended' ? "Reactivate" : "Suspend Account"}
+            {deleteLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            Delete Account
           </Button>
           <Button onClick={() => setIsRenewModalOpen(true)}>
             Renew Membership
@@ -242,8 +254,8 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
 
       {/* Renew Modal */}
       <RenewModal 
-        isOpen={isRenewModalOpen} 
-        onClose={() => setIsRenewModalOpen(false)} 
+        isOpen={renewModalOpen} 
+        onClose={closeRenewModal} 
         member={member} 
         onUpdate={onUpdate}
       />
