@@ -3,6 +3,7 @@ import { StatCard } from "@/components/dashboard/StatCard"
 import { createClient } from "@supabase/supabase-js"
 import MembershipCharts from "@/components/analytics/MembershipCharts"
 import type { ChartPeriodBounds } from "@/utils/date-filters"
+import { memberSubscriptionCategory } from "@/lib/memberSubscription"
 
 async function getMembershipData(period: ChartPeriodBounds) {
   const supabase = createClient(
@@ -18,7 +19,7 @@ async function getMembershipData(period: ChartPeriodBounds) {
   // All members (for status breakdown & type distribution)
   const { data: allMembers } = await supabase
     .from("members")
-    .select("id, status, membership_type, created_at")
+    .select("id, status, end_date, membership_type, created_at")
 
   // New members this period
   const { data: newThisPeriod } = await supabase
@@ -108,7 +109,7 @@ async function getMembershipData(period: ChartPeriodBounds) {
     "1_month": "Monthly", "student_1_month": "Student",
   }
   const typeCounts: Record<string, number> = { "1_day": 0, "1_week": 0, "1_month": 0, "student_1_month": 0 }
-  ;(allMembers || []).filter((m) => m.status === "active").forEach((m) => {
+  ;(allMembers || []).filter((m) => memberSubscriptionCategory(m) === "active").forEach((m) => {
     if (m.membership_type in typeCounts) typeCounts[m.membership_type]++
   })
   const membershipTypeDist = Object.entries(typeCounts).map(([type, value]) => ({
@@ -126,13 +127,14 @@ async function getMembershipData(period: ChartPeriodBounds) {
     if (m.created_at >= startDate + "T00:00:00" && m.created_at <= endDate + "T23:59:59") {
       const d = new Date(m.created_at)
       const wi = Math.min(Math.floor((d.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24 * 7)), numWeeks - 1)
-      if (m.status === "active")    statusByWeek[wi].Active++
-      else if (m.status === "expired")   statusByWeek[wi].Expired++
-      else if (m.status === "suspended") statusByWeek[wi].Suspended++
+      const category = memberSubscriptionCategory(m)
+      if (m.status === "suspended") statusByWeek[wi].Suspended++
+      else if (m.status === "cancelled" || category === "expired") statusByWeek[wi].Expired++
+      else if (category === "active" || category === "expiring_soon") statusByWeek[wi].Active++
     }
   })
 
-  const totalActiveNow = (allMembers || []).filter((m) => m.status === "active").length
+  const totalActiveNow = (allMembers || []).filter((m) => memberSubscriptionCategory(m) === "active").length
 
   return {
     newMembersCount,

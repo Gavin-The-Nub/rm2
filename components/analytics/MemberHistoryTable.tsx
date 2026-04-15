@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
 import { createClient } from "@supabase/supabase-js"
 import type { AnalyticsTablesFilter } from "@/utils/date-filters"
+import { memberStatusLabel } from "@/lib/memberSubscription"
 
 async function getMemberHistory(tables: AnalyticsTablesFilter) {
   const supabase = createClient(
@@ -56,11 +57,6 @@ async function getMemberHistory(tables: AnalyticsTablesFilter) {
     "1_day": "1 Day", "1_week": "Weekly",
     "1_month": "Monthly", "student_1_month": "Student",
   }
-  const statusLabels: Record<string, string> = {
-    active: "Active", expired: "Expired",
-    suspended: "Suspended", cancelled: "Cancelled",
-  }
-
   const today     = new Date().toISOString().split("T")[0]
   const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0]
 
@@ -87,7 +83,7 @@ async function getMemberHistory(tables: AnalyticsTablesFilter) {
       id: m.id,
       name: m.name,
       type: typeLabels[m.membership_type] || m.membership_type,
-      status: statusLabels[m.status] || m.status,
+      status: memberStatusLabel(m),
       start: formatDate(m.start_date),
       end: formatDate(m.end_date),
       visits: visitCounts[m.id] || 0,
@@ -153,7 +149,17 @@ export async function MemberHistoryTable({
                   </Badge>
                 </td>
                 <td className="p-4">
-                  <Badge variant={member.status === "Active" ? "positive" : member.status === "Suspended" ? "suspended" : "negative"}>
+                  <Badge
+                    variant={
+                      member.status === "Active"
+                        ? "active"
+                        : member.status === "Expiring soon"
+                          ? "expiring_soon"
+                          : member.status === "Suspended"
+                            ? "suspended"
+                            : "negative"
+                    }
+                  >
                     {member.status}
                   </Badge>
                 </td>

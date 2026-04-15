@@ -20,13 +20,10 @@ export default async function Dashboard() {
   const todayStart = startOfDay(today)
   const thisMonthStart = startOfMonth(today)
   
-  // Total Active Members
-  const activeMembers = members.filter(m => m.status === 'active')
+  // Keep status logic aligned with Members page (considers end_date + raw status)
+  const activeMembers = members.filter((m) => memberSubscriptionCategory(m) === "active")
   const totalActiveMembers = activeMembers.length
 
-  // Walk-in Count (1_day memberships created today)
-  const walkInToday = members.filter(m => m.membership_type === '1_day' && m.created_at && isSameDay(parseISO(m.created_at), todayStart))
-  
   // Today's New Members
   const todaysNewMembers = members.filter(m => m.created_at && isSameDay(parseISO(m.created_at), todayStart))
   
@@ -88,15 +85,13 @@ export default async function Dashboard() {
   })
 
   const salesTotals = weeklySalesData.map(d => d.total)
-  const walkinTotals = weeklySalesData.map(d => d['1 Day'])
-
   return (
     <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard 
           title="Total Active Members" 
           value={totalActiveMembers.toLocaleString()} 
@@ -111,13 +106,6 @@ export default async function Dashboard() {
           delta={0} 
           className="min-h-[160px]"
           chart={<MiniChart data={salesTotals.length > 0 ? salesTotals : [0,0,0,0,0,0,0]} color="#10B981" />}
-        />
-        <StatCard 
-          title="Walk-in Count" 
-          value={walkInToday.length.toString()} 
-          delta={0} 
-          className="min-h-[160px]"
-          chart={<MiniChart data={walkinTotals.length > 0 ? walkinTotals : [0,0,0,0,0,0,0]} color="#F59E0B" />}
         />
       </div>
 
