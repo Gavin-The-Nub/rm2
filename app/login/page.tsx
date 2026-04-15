@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/Button"
@@ -37,10 +38,16 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--color-bg-base)]">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-8 shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+        <Image
+          src="/rmlogo.png"
+          alt="RM Fitness Gym"
+          width={420}
+          height={124}
+          className="mb-6 h-auto w-full"
+          priority
+        />
         <h1 className="text-xl font-semibold text-white mb-1">Sign in</h1>
-        <p className="text-sm text-[var(--color-text-muted)] mb-6">
-          RM Fitness Gym staff portal
-        </p>
+        <p className="text-sm text-[var(--color-text-muted)] mb-6">Staff portal</p>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="text-xs font-medium text-white/70 mb-1.5 block">

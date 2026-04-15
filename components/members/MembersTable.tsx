@@ -332,6 +332,11 @@ export function MembersTable() {
                   <td className="px-6 py-4 text-right text-secondary">₱{member.total_paid.toFixed(2)}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Link href={`/members/${member.id}?renew=1`}>
+                        <Button variant="secondary" className="px-3 py-1.5 h-auto text-[10px] uppercase tracking-wider">
+                          Renew
+                        </Button>
+                      </Link>
                       <Link href={`/members/${member.id}`}>
                         <Button variant="secondary" className="px-3 py-1.5 h-auto text-[10px] uppercase tracking-wider">
                           View

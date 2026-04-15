@@ -46,14 +46,36 @@ CREATE INDEX idx_members_end_date ON public.members(end_date);
 CREATE INDEX idx_renewals_member ON public.renewals(member_id);
 CREATE INDEX idx_renewals_created ON public.renewals(created_at);
 
+-- Email / notification audit (e.g. expiry reminders; updated by app + provider webhooks)
+CREATE TABLE public.member_notification_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    member_id UUID NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL DEFAULT 'expiry_reminder',
+    recipient_email TEXT NOT NULL,
+    subject TEXT,
+    body_html TEXT,
+    body_text TEXT,
+    sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('queued', 'sent', 'delivered', 'bounced', 'failed', 'skipped')),
+    provider_message_id TEXT,
+    error_message TEXT,
+    delivered_at TIMESTAMPTZ,
+    metadata JSONB
+);
+
+CREATE INDEX idx_member_notification_logs_member ON public.member_notification_logs(member_id);
+CREATE INDEX idx_member_notification_logs_sent ON public.member_notification_logs(sent_at DESC);
+
 -- RLS (Row Level Security) - allow anon access for MVP since there's no auth setup
 ALTER TABLE public.members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.renewals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.member_notification_logs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow anon read/write access to members" ON public.members FOR ALL USING (true);
 CREATE POLICY "Allow anon read/write access to attendance" ON public.attendance FOR ALL USING (true);
 CREATE POLICY "Allow anon read/write access to renewals" ON public.renewals FOR ALL USING (true);
+CREATE POLICY "Allow anon read/write access to member_notification_logs" ON public.member_notification_logs FOR ALL USING (true);
 
 -- Staff portal roles (linked to Supabase Auth)
 CREATE TABLE public.profiles (
@@ -89,3 +111,43 @@ CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW
     EXECUTE PROCEDURE public.handle_new_user();
+
+-- App Settings (admin-configurable pricing)
+CREATE TABLE public.app_settings (
+    key TEXT PRIMARY KEY,
+    value NUMERIC(10, 2) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow authenticated users to read app settings"
+    ON public.app_settings FOR SELECT
+    USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow admins to write app settings"
+    ON public.app_settings FOR ALL
+    USING (
+      EXISTS (
+        SELECT 1
+        FROM public.profiles
+        WHERE profiles.id = auth.uid()
+          AND profiles.role = 'admin'
+      )
+    )
+    WITH CHECK (
+      EXISTS (
+        SELECT 1
+        FROM public.profiles
+        WHERE profiles.id = auth.uid()
+          AND profiles.role = 'admin'
+      )
+    );
+
+INSERT INTO public.app_settings (key, value)
+VALUES
+  ('session_rate', 70.00),
+  ('weekly_rate', 200.00),
+  ('monthly_rate', 600.00),
+  ('student_rate', 500.00)
+ON CONFLICT (key) DO NOTHING;

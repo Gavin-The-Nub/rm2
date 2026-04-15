@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { supabase } from "@/utils/supabase/client"
 import { Card } from "@/components/ui/Card"
 import { Input } from "@/components/ui/Input"
 import { Button } from "@/components/ui/Button"
 import { X, Loader2 } from "lucide-react"
+import { DEFAULT_PRICING, type MonthlyPlan, type PricingConfig } from "@/lib/pricing"
 
 type RenewModalProps = {
   isOpen: boolean
@@ -16,26 +17,79 @@ type RenewModalProps = {
 
 export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProps) {
   const [loading, setLoading] = useState(false)
-  
-  // Default to their current type
-  const [type, setType] = useState<"1_day" | "weekly" | "monthly">(member?.membership_type || "weekly")
-  
-  // Set default payment based on type
-  const [payment, setPayment] = useState(() => {
-    const t = member?.membership_type || "weekly"
-    if (t === "1_day") return "10"
-    if (t === "weekly") return "45"
-    if (t === "monthly") return "120"
-    return ""
-  })
+  const [type, setType] = useState<"1_day" | "weekly" | "monthly">("weekly")
+  const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan>("regular")
+  const [payment, setPayment] = useState("")
+  const [pricing, setPricing] = useState<PricingConfig>(DEFAULT_PRICING)
+
+  useEffect(() => {
+    const loadPricing = async () => {
+      const { data, error } = await supabase
+        .from("app_settings")
+        .select("key,value")
+        .in("key", ["session_rate", "weekly_rate", "monthly_rate", "student_rate"])
+
+      if (error || !data) return
+
+      const nextPricing: PricingConfig = { ...DEFAULT_PRICING }
+      for (const row of data) {
+        const value = Number(row.value)
+        if (Number.isNaN(value)) continue
+        if (row.key === "session_rate") nextPricing.session = value
+        if (row.key === "weekly_rate") nextPricing.weekly = value
+        if (row.key === "monthly_rate") nextPricing.monthlyRegular = value
+        if (row.key === "student_rate") nextPricing.monthlyStudent = value
+      }
+
+      setPricing(nextPricing)
+    }
+
+    void loadPricing()
+  }, [])
+
+  const getDefaultPayment = (
+    membershipType: "1_day" | "weekly" | "monthly",
+    plan: MonthlyPlan
+  ) => {
+    if (membershipType === "1_day") return String(pricing.session)
+    if (membershipType === "weekly") return String(pricing.weekly)
+    return String(plan === "student" ? pricing.monthlyStudent : pricing.monthlyRegular)
+  }
+
+  const inferMonthlyPlan = (amount: number): MonthlyPlan => {
+    const studentDiff = Math.abs(amount - pricing.monthlyStudent)
+    const regularDiff = Math.abs(amount - pricing.monthlyRegular)
+    return studentDiff <= regularDiff ? "student" : "regular"
+  }
+
+  useEffect(() => {
+    if (!isOpen || !member) return
+
+    const nextType = (member.membership_type || "weekly") as "1_day" | "weekly" | "monthly"
+    const nextPlan =
+      nextType === "monthly" ? inferMonthlyPlan(Number(member.payment_amount) || pricing.monthlyRegular) : "regular"
+
+    setType(nextType)
+    setMonthlyPlan(nextPlan)
+    setPayment(
+      member.payment_amount !== null && member.payment_amount !== undefined
+        ? String(member.payment_amount)
+        : getDefaultPayment(nextType, nextPlan)
+    )
+  }, [isOpen, member, pricing])
 
   if (!isOpen || !member) return null
 
   const handleTypeChange = (newType: "1_day" | "weekly" | "monthly") => {
     setType(newType)
-    if (newType === "1_day") setPayment("10")
-    if (newType === "weekly") setPayment("45")
-    if (newType === "monthly") setPayment("120")
+    setPayment(getDefaultPayment(newType, monthlyPlan))
+  }
+
+  const handleMonthlyPlanChange = (plan: MonthlyPlan) => {
+    setMonthlyPlan(plan)
+    if (type === "monthly") {
+      setPayment(getDefaultPayment("monthly", plan))
+    }
   }
 
   const handleRenew = async (e: React.FormEvent) => {
@@ -144,6 +198,38 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
               </div>
             </div>
           </div>
+
+          {type === "monthly" && (
+            <div className="space-y-3">
+              <label className="text-xs font-semibold text-secondary uppercase tracking-wider block">Monthly Type</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleMonthlyPlanChange("regular")}
+                  className={`p-3 rounded-lg border text-left transition-all ${
+                    monthlyPlan === "regular"
+                      ? "border-accent-primary bg-accent-primary/10 text-accent-primary"
+                      : "border-white/10 hover:border-white/20 text-primary"
+                  }`}
+                >
+                  <p className="font-semibold text-sm">Regular</p>
+                  <p className="text-xs">{pricing.monthlyRegular.toFixed(2)}</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMonthlyPlanChange("student")}
+                  className={`p-3 rounded-lg border text-left transition-all ${
+                    monthlyPlan === "student"
+                      ? "border-accent-primary bg-accent-primary/10 text-accent-primary"
+                      : "border-white/10 hover:border-white/20 text-primary"
+                  }`}
+                >
+                  <p className="font-semibold text-sm">Student</p>
+                  <p className="text-xs">{pricing.monthlyStudent.toFixed(2)}</p>
+                </button>
+              </div>
+            </div>
+          )}
 
           <div>
              <label className="text-xs font-semibold text-secondary uppercase tracking-wider block mb-2">Payment Amount (₱)</label>

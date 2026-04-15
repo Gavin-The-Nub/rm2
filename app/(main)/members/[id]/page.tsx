@@ -11,6 +11,12 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
   const [loading, setLoading] = useState(true)
 
   const fetchMember = async () => {
+    if (!resolvedParams?.id) {
+      setMember(null)
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     const { data, error } = await supabase
       .from('members')
@@ -24,12 +30,29 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
 
     if (error) {
       console.error("Error fetching member:", error)
+      setMember(null)
     } else {
       // Sort attendance by date desc
       if (data.attendance) {
         data.attendance.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       }
-      setMember(data)
+
+      // Load notification logs separately so schema drift on this table
+      // cannot block member profile rendering.
+      const { data: logs, error: logsError } = await supabase
+        .from('member_notification_logs')
+        .select('id, kind, recipient_email, sent_at, status, delivered_at, error_message, provider_message_id')
+        .eq('member_id', resolvedParams.id)
+        .order('sent_at', { ascending: false })
+
+      if (logsError) {
+        console.warn("Error fetching member notification logs:", logsError)
+      }
+
+      setMember({
+        ...data,
+        member_notification_logs: logs ?? [],
+      })
     }
     setLoading(false)
   }

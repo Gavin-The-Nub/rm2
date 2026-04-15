@@ -1,15 +1,21 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { supabase } from "@/utils/supabase/client"
 import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { Badge } from "@/components/ui/Badge"
 import { format } from "date-fns"
-import { ArrowLeft, User, Calendar, Clock, Loader2, AlertCircle } from "lucide-react"
+import { ArrowLeft, User, Calendar, Clock, Loader2, AlertCircle, Mail } from "lucide-react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { RenewModal } from "./RenewModal"
 import { memberStatusBadgeVariant, memberStatusLabel } from "@/lib/memberSubscription"
+import {
+  notificationKindLabel,
+  notificationStatusBadgeVariant,
+  notificationStatusLabel,
+} from "@/lib/memberNotificationDisplay"
 
 type MemberProfileProps = {
   member: any
@@ -19,6 +25,13 @@ type MemberProfileProps = {
 export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
   const [suspendLoading, setSuspendLoading] = useState(false)
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false)
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    if (searchParams.get("renew") === "1") {
+      setIsRenewModalOpen(true)
+    }
+  }, [searchParams])
 
   const handleToggleSuspend = async () => {
     setSuspendLoading(true)
@@ -173,25 +186,70 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
           </Card>
 
           <Card className="p-0 border border-white/5 overflow-hidden flex-1 min-h-[300px]">
-             <div className="p-6 border-b border-white/5 flex justify-between items-center bg-card/50">
-              <h3 className="text-sm font-semibold text-secondary uppercase tracking-wider">Recent Activity</h3>
+            <div className="p-6 border-b border-white/5 flex justify-between items-center bg-card/50">
+              <h3 className="text-sm font-semibold text-secondary uppercase tracking-wider">
+                Email notifications
+              </h3>
+              <Link
+                href={`/email-logs?memberId=${member.id}`}
+                className="text-xs text-accent-primary hover:underline"
+              >
+                View all
+              </Link>
             </div>
-            
+
             <div className="p-0">
-              {member.attendance?.length === 0 ? (
-                <div className="p-8 text-center text-muted text-sm">No recorded visits yet.</div>
+              {!member.member_notification_logs || member.member_notification_logs.length === 0 ? (
+                <div className="p-8 text-center text-muted text-sm">
+                  No reminder emails logged yet. They will appear here after expiry reminders are sent.
+                </div>
               ) : (
                 <div className="divide-y divide-white/5">
-                  {/* Just showing last 5 visits limit ideally, or full scroll */}
-                  {member.attendance?.slice(0, 10).map((v: any, i: number) => (
-                    <div key={i} className="flex justify-between items-center p-4 hover:bg-card-hover transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="w-2 h-2 rounded-full bg-accent-secondary shrink-0" />
-                        <span className="text-primary text-sm font-medium">Checked in</span>
+                  {member.member_notification_logs.slice(0, 20).map((row: any) => (
+                    <div
+                      key={row.id}
+                      className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 p-4 hover:bg-card-hover transition-colors"
+                    >
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="p-2 rounded-lg bg-input border border-white/5 shrink-0 mt-0.5">
+                          <Mail className="w-4 h-4 text-accent-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-primary text-sm font-medium">
+                            {notificationKindLabel(row.kind)}
+                          </p>
+                          <p className="text-muted text-xs mt-0.5 break-all">
+                            To: {row.recipient_email}
+                          </p>
+                          <p className="text-secondary text-xs mt-0.5">
+                            Sent {format(new Date(row.sent_at), "MMM d, yyyy 'at' h:mm a")}
+                            {row.delivered_at && (
+                              <span className="text-muted">
+                                {" "}
+                                · Confirmed delivered{" "}
+                                {format(new Date(row.delivered_at), "MMM d, yyyy 'at' h:mm a")}
+                              </span>
+                            )}
+                          </p>
+                          {row.error_message && (
+                            <p className="text-red-400 text-xs mt-1 break-words">{row.error_message}</p>
+                          )}
+                          {row.provider_message_id && (
+                            <p className="text-muted text-[11px] mt-1 break-all">
+                              Message ID: {row.provider_message_id}
+                            </p>
+                          )}
+                          <Link
+                            href={`/email-logs/${row.id}`}
+                            className="text-xs text-accent-primary hover:underline mt-1 inline-block"
+                          >
+                            View message
+                          </Link>
+                        </div>
                       </div>
-                      <span className="text-secondary text-sm">
-                         {format(new Date(v.check_in_date), 'MMM d, yyyy')}
-                      </span>
+                      <Badge variant={notificationStatusBadgeVariant(row.status)} className="shrink-0 self-start sm:self-center">
+                        {notificationStatusLabel(row.status)}
+                      </Badge>
                     </div>
                   ))}
                 </div>

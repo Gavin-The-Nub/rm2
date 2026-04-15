@@ -2,12 +2,14 @@
 
 import React, { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import {
   Home,
   Users,
   BarChart2,
   Settings,
+  Mail,
   ChevronLeft,
   ChevronRight,
   Dumbbell,
@@ -20,6 +22,7 @@ import type { AppRole } from "@/lib/auth/roles"
 const allNavItems = [
   { name: "Dashboard", href: "/", icon: Home, roles: ["admin"] as AppRole[] },
   { name: "Members", href: "/members", icon: Users, roles: ["admin", "staff"] },
+  { name: "Email Logs", href: "/email-logs", icon: Mail, roles: ["admin"] as AppRole[] },
   { name: "Analytics", href: "/analytics", icon: BarChart2, roles: ["admin"] },
   { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
 ]
@@ -56,8 +59,14 @@ export function Sidebar({
         <div className="flex h-16 items-center justify-between px-4 border-b border-white/[0.04]">
           {!isCollapsed && (
             <div className="flex items-center gap-2 font-bold text-lg text-white">
-             
-              <span className="tracking-tight">RM Fitness Gym</span>
+              <Image
+                src="/rmlogo.png"
+                alt="RM Fitness Gym"
+                width={180}
+                height={50}
+                className="h-8 w-auto"
+                priority
+              />
             </div>
           )}
           {isCollapsed && (
