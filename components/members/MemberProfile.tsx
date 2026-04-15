@@ -57,8 +57,6 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
   const statusLabel = memberStatusLabel(member)
   const statusBadgeVariant = memberStatusBadgeVariant(member)
 
-  // Derived stats mock (Since complex aggregation is handled in a broader component)
-  const visits = member.attendance?.length || 0
   const totalPaid = Number(member.payment_amount) + (member.renewals?.reduce((sum: number, r: any) => sum + Number(r.payment_amount), 0) || 0)
 
   return (
@@ -124,12 +122,8 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
               </div>
             </Badge>
 
-            <div className="grid grid-cols-2 gap-4 w-full border-t border-white/5 pt-6 mt-2">
-              <div className="flex flex-col">
-                <span className="text-xs text-muted uppercase tracking-wider mb-1">Total Visits</span>
-                <span className="text-xl font-semibold text-primary">{visits}</span>
-              </div>
-              <div className="flex flex-col">
+            <div className="w-full border-t border-white/5 pt-6 mt-2">
+              <div className="flex flex-col items-center">
                 <span className="text-xs text-muted uppercase tracking-wider mb-1">Total Paid</span>
                 <span className="text-xl font-semibold text-primary">₱{totalPaid.toFixed(2)}</span>
               </div>
@@ -169,19 +163,6 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
                 </div>
               </div>
 
-              <div className="flex items-start gap-3">
-                 <div className="p-2.5 rounded-xl bg-input border border-white/5 shrink-0">
-                  <Clock className="w-5 h-5 text-secondary" />
-                </div>
-                <div className="flex-1 shrink-0">
-                  <p className="text-xs text-muted uppercase tracking-wider mb-1">Scan ID</p>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-secondary font-mono bg-black/40 px-2 py-1 rounded inline-block">
-                      {member.qr_code}
-                    </p>
-                  </div>
-                </div>
-              </div>
             </div>
           </Card>
 

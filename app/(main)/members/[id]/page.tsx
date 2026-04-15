@@ -22,7 +22,6 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
       .from('members')
       .select(`
         *,
-        attendance ( check_in_date, created_at ),
         renewals ( payment_amount, created_at )
       `)
       .eq('id', resolvedParams.id)
@@ -32,11 +31,6 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
       console.error("Error fetching member:", error)
       setMember(null)
     } else {
-      // Sort attendance by date desc
-      if (data.attendance) {
-        data.attendance.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      }
-
       // Load notification logs separately so schema drift on this table
       // cannot block member profile rendering.
       const { data: logs, error: logsError } = await supabase

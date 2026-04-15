@@ -23,13 +23,10 @@ type MemberRow = {
   photo_url: string | null
   membership_type: "1_day" | "weekly" | "monthly"
   status: "active" | "suspended" | "cancelled"
-  qr_code: string
   start_date: string
   end_date: string
   created_at: string
   total_paid: number
-  total_visits: number
-  last_seen: string | null
 }
 
 type MembersTab = "all" | "active" | "expiring_soon" | "expired"
@@ -55,8 +52,7 @@ export function MembersTable() {
       const { data, error } = await supabase
         .from('members')
         .select(`
-          id, name, email, photo_url, membership_type, status, qr_code, start_date, end_date, created_at, payment_amount,
-          attendance ( check_in_date ),
+          id, name, email, photo_url, membership_type, status, start_date, end_date, created_at, payment_amount,
           renewals ( payment_amount )
         `)
         .order('created_at', { ascending: false })
@@ -69,16 +65,6 @@ export function MembersTable() {
 
       // Map and aggregate
       const formattedData: MemberRow[] = data.map((m: any) => {
-        // Calculate total visits and last seen
-        const visits = m.attendance || []
-        const totalVisits = visits.length
-        
-        let lastSeen = null
-        if (visits.length > 0) {
-           const dates = visits.map((v: any) => new Date(v.check_in_date).getTime())
-           lastSeen = new Date(Math.max(...dates)).toISOString()
-        }
-
         // Calculate total paid
         const basePayment = Number(m.payment_amount) || 0
         const renewals = m.renewals || []
@@ -91,13 +77,10 @@ export function MembersTable() {
           photo_url: m.photo_url,
           membership_type: m.membership_type,
           status: m.status,
-          qr_code: m.qr_code,
           start_date: m.start_date,
           end_date: m.end_date,
           created_at: m.created_at,
           total_paid: basePayment + totalRenewals,
-          total_visits: totalVisits,
-          last_seen: lastSeen
         }
       })
 
@@ -256,10 +239,8 @@ export function MembersTable() {
             <tr>
               <th className="px-6 py-4">Member</th>
               <th className="px-6 py-4">Status</th>
-              <th className="px-6 py-4">Scan ID</th>
               <th className="px-6 py-4">Type</th>
               <th className="px-6 py-4">End Date</th>
-              <th className="px-6 py-4 text-right">Visits</th>
               <th className="px-6 py-4 text-right">Paid</th>
               <th className="px-6 py-4"></th>
             </tr>
@@ -267,11 +248,11 @@ export function MembersTable() {
           <tbody className="divide-y divide-white/5">
             {loading ? (
               <tr>
-                <td colSpan={8} className="px-6 py-8 text-center text-muted">Loading members...</td>
+                <td colSpan={6} className="px-6 py-8 text-center text-muted">Loading members...</td>
               </tr>
             ) : filteredMembers.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-8 text-center text-muted">No members found.</td>
+                <td colSpan={6} className="px-6 py-8 text-center text-muted">No members found.</td>
               </tr>
             ) : (
               filteredMembers.map((member) => {
@@ -315,11 +296,6 @@ export function MembersTable() {
                       </div>
                     </Badge>
                   </td>
-                  <td className="px-6 py-4">
-                    <code className="text-[10px] bg-black/30 px-1.5 py-0.5 rounded text-secondary/80 font-mono">
-                      {member.qr_code}
-                    </code>
-                  </td>
                   <td className="px-6 py-4 text-secondary">{formatMembershipType(member.membership_type)}</td>
                   <td className={cn(
                     "px-6 py-4 text-secondary",
@@ -328,7 +304,6 @@ export function MembersTable() {
                   )}>
                     {format(new Date(member.end_date), 'MMM d, yyyy')}
                   </td>
-                  <td className="px-6 py-4 text-right font-medium">{member.total_visits}</td>
                   <td className="px-6 py-4 text-right text-secondary">₱{member.total_paid.toFixed(2)}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
