@@ -15,6 +15,8 @@ export default async function Dashboard() {
 
   const members = membersResponse || []
   const renewals = renewalsResponse || []
+  const renewalDate = (r: any) => r.created_at || r.renewal_date
+  const renewalAmount = (r: any) => Number(r.payment_amount ?? r.amount ?? 0)
 
   const today = new Date()
   const todayStart = startOfDay(today)
@@ -29,12 +31,16 @@ export default async function Dashboard() {
   
   // Today's Revenue
   const todaysMemberSales = members.filter(m => m.created_at && isSameDay(parseISO(m.created_at), todayStart)).reduce((sum, m) => sum + (m.payment_amount || 0), 0)
-  const todaysRenewalSales = renewals.filter(r => r.renewal_date && isSameDay(parseISO(r.renewal_date), todayStart)).reduce((sum, r) => sum + (r.amount || 0), 0)
+  const todaysRenewalSales = renewals
+    .filter(r => renewalDate(r) && isSameDay(parseISO(renewalDate(r)), todayStart))
+    .reduce((sum, r) => sum + renewalAmount(r), 0)
   const todaysRevenue = todaysMemberSales + todaysRenewalSales
   
   // Monthly Revenue
   const monthlyMemberSales = members.filter(m => m.created_at && (isAfter(parseISO(m.created_at), thisMonthStart) || isSameDay(parseISO(m.created_at), thisMonthStart))).reduce((sum, m) => sum + (m.payment_amount || 0), 0)
-  const monthlyRenewalSales = renewals.filter(r => r.renewal_date && (isAfter(parseISO(r.renewal_date), thisMonthStart) || isSameDay(parseISO(r.renewal_date), thisMonthStart))).reduce((sum, r) => sum + (r.amount || 0), 0)
+  const monthlyRenewalSales = renewals
+    .filter(r => renewalDate(r) && (isAfter(parseISO(renewalDate(r)), thisMonthStart) || isSameDay(parseISO(renewalDate(r)), thisMonthStart)))
+    .reduce((sum, r) => sum + renewalAmount(r), 0)
   const monthlyRevenue = monthlyMemberSales + monthlyRenewalSales
   
   const expiringSoonCount = members.filter(
@@ -70,9 +76,9 @@ export default async function Dashboard() {
     })
 
     // Renewals on this day
-    renewals.filter(r => r.renewal_date && isDay(r.renewal_date)).forEach(r => {
+    renewals.filter(r => renewalDate(r) && isDay(renewalDate(r))).forEach(r => {
       const parentMember = members.find(mx => mx.id === r.member_id)
-      processPayment(parentMember?.membership_type || '1_month', r.amount || 0)
+      processPayment(r.membership_type || parentMember?.membership_type || '1_month', renewalAmount(r))
     })
 
     return {

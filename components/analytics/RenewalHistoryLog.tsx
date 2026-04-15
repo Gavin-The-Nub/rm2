@@ -13,7 +13,7 @@ async function getRenewalLogs(tables: AnalyticsTablesFilter) {
   let query = supabase
     .from("renewals")
     .select(
-      "id, created_at, membership_type, previous_end_date, new_end_date, amount, members(name)",
+      "id, created_at, renewal_date, membership_type, previous_end_date, new_end_date, payment_amount, amount, members(name)",
       { count: "exact" }
     )
     .order("created_at", { ascending: false })
@@ -39,7 +39,8 @@ async function getRenewalLogs(tables: AnalyticsTablesFilter) {
     const member = (r as any).members
     const name = member?.name ?? "Unknown"
 
-    const dateObj = new Date(r.created_at)
+    const renewalTimestamp = (r as any).created_at || (r as any).renewal_date
+    const dateObj = new Date(renewalTimestamp)
     const dateStr = dateObj.toISOString().split("T")[0]
     const timeStr = dateObj.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
 
@@ -64,7 +65,10 @@ async function getRenewalLogs(tables: AnalyticsTablesFilter) {
       type: typeLabels[r.membership_type] || r.membership_type,
       prevEnd: formatDate(r.previous_end_date),
       newEnd: formatDate(r.new_end_date),
-      amount: r.amount != null ? `₱${Number(r.amount).toFixed(2)}` : "—",
+      amount:
+        (r as any).payment_amount != null || (r as any).amount != null
+          ? `₱${Number((r as any).payment_amount ?? (r as any).amount).toFixed(2)}`
+          : "—",
     }
   })
 
