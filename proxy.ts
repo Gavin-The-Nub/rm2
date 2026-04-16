@@ -14,7 +14,7 @@ function safeNextPath(next: string | null): string | null {
   return next
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -45,6 +45,7 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const isLogin = pathname === "/login"
   const isAuthCallback = pathname.startsWith("/auth/callback")
+  const isCronReminderEndpoint = pathname === "/api/member-notifications/send-expiry-reminders"
 
   let role: AppRole = "staff"
   if (user) {
@@ -64,6 +65,11 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isAuthCallback) {
+    return response
+  }
+
+  if (isCronReminderEndpoint) {
+    // Allow scheduler access; route enforces CRON_SECRET internally.
     return response
   }
 
