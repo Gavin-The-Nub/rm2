@@ -46,6 +46,14 @@ export default async function EmailLogDetailPage({ params }: EmailLogDetailPageP
   const memberName = Array.isArray((row as any).members)
     ? (row as any).members?.[0]?.name
     : (row as any).members?.name
+  const previewHtml = row.body_html
+    ? row.body_html
+        .replace("color: #111827;", "color: #f3f4f6;")
+        .replace(
+          'style="font-family: Arial, sans-serif; line-height: 1.6; color: #f3f4f6;"',
+          'style="font-family: Arial, sans-serif; line-height: 1.6; color: #f3f4f6; background: #0b1220; padding: 16px; border-radius: 12px;"'
+        )
+    : null
 
   return (
     <div className="w-full max-w-5xl mx-auto py-6 flex flex-col gap-6">
@@ -106,7 +114,7 @@ export default async function EmailLogDetailPage({ params }: EmailLogDetailPageP
         {row.body_html ? (
           <div
             className="prose prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ __html: row.body_html }}
+            dangerouslySetInnerHTML={{ __html: previewHtml ?? row.body_html }}
           />
         ) : row.body_text ? (
           <pre className="whitespace-pre-wrap text-sm text-secondary font-sans">{row.body_text}</pre>
