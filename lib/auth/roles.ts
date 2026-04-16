@@ -5,5 +5,5 @@ export function isAppRole(value: unknown): value is AppRole {
 }
 
 export function staffAllowedPath(pathname: string): boolean {
-  return pathname === "/members" || pathname.startsWith("/members/")
+  return pathname === "/members" || pathname.startsWith("/members/") || pathname === "/kiosk-checkin"
 }
