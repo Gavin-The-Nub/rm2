@@ -5,6 +5,15 @@ import MembershipCharts from "@/components/analytics/MembershipCharts"
 import type { ChartPeriodBounds } from "@/utils/date-filters"
 import { isSubscriptionCountedActive, memberSubscriptionCategory } from "@/lib/memberSubscription"
 
+function normalizeMembershipType(type?: string | null): "1_day" | "weekly" | "monthly" | "student_monthly" {
+  if (!type) return "monthly"
+  if (type === "1_day") return "1_day"
+  if (type === "weekly" || type === "1_week") return "weekly"
+  if (type === "monthly" || type === "1_month") return "monthly"
+  if (type === "student_1_month" || type === "student_monthly") return "student_monthly"
+  return "monthly"
+}
+
 async function getMembershipData(period: ChartPeriodBounds) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -101,16 +110,21 @@ async function getMembershipData(period: ChartPeriodBounds) {
 
   // --- Membership Type Distribution (active members) ---
   const typeColors: Record<string, string> = {
-    "1_day": "#9CA3AF", "1_week": "#3B82F6",
-    "1_month": "#8B5CF6", "student_1_month": "#A855F7",
+    "1_day": "#9CA3AF",
+    "weekly": "#3B82F6",
+    "monthly": "#8B5CF6",
+    "student_monthly": "#A855F7",
   }
   const typeLabels: Record<string, string> = {
-    "1_day": "1 Day", "1_week": "Weekly",
-    "1_month": "Monthly", "student_1_month": "Student",
+    "1_day": "1 Day",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "student_monthly": "Student Monthly",
   }
-  const typeCounts: Record<string, number> = { "1_day": 0, "1_week": 0, "1_month": 0, "student_1_month": 0 }
+  const typeCounts: Record<string, number> = { "1_day": 0, "weekly": 0, "monthly": 0, "student_monthly": 0 }
   ;(allMembers || []).filter((m) => isSubscriptionCountedActive(m)).forEach((m) => {
-    if (m.membership_type in typeCounts) typeCounts[m.membership_type]++
+    const normalized = normalizeMembershipType(m.membership_type)
+    typeCounts[normalized] = (typeCounts[normalized] || 0) + 1
   })
   const membershipTypeDist = Object.entries(typeCounts).map(([type, value]) => ({
     name: typeLabels[type] || type,

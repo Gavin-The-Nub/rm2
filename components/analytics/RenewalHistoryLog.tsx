@@ -13,33 +13,45 @@ async function getRenewalLogs(tables: AnalyticsTablesFilter) {
   let query = supabase
     .from("renewals")
     .select(
-      "id, created_at, renewal_date, membership_type, previous_end_date, new_end_date, payment_amount, amount, members(name)",
+      "id, member_id, created_at, membership_type, previous_end_date, new_end_date, payment_amount",
       { count: "exact" }
     )
     .order("created_at", { ascending: false })
-    .limit(50)
 
   if (tables.mode === "range") {
-    query = query
-      .gte("created_at", tables.startDate + "T00:00:00")
-      .lte("created_at", tables.endDate + "T23:59:59")
+    const startTs = tables.startDate + "T00:00:00"
+    const endTs = tables.endDate + "T23:59:59"
+    query = query.gte("created_at", startTs).lte("created_at", endTs)
   }
 
-  const { data: renewals, count } = await query
+  const { data: renewals, count, error } = await query.limit(50)
+  if (error) {
+    console.error("Failed to load renewal logs:", error)
+    return { rows: [], total: 0 }
+  }
+  const memberIds = Array.from(new Set((renewals || []).map((r: any) => r.member_id).filter(Boolean)))
+  const { data: members } = memberIds.length
+    ? await supabase.from("members").select("id,name").in("id", memberIds)
+    : { data: [] }
+  const memberNames = new Map((members || []).map((m) => [m.id, m.name]))
 
   const typeLabels: Record<string, string> = {
-    "1_day": "1 Day", "1_week": "Weekly",
-    "1_month": "Monthly", "student_1_month": "Student",
+    "1_day": "1 Day",
+    "1_week": "Weekly",
+    "weekly": "Weekly",
+    "1_month": "Monthly",
+    "monthly": "Monthly",
+    "student_1_month": "Student",
+    "student_monthly": "Student Monthly",
   }
 
   const today     = new Date().toISOString().split("T")[0]
   const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0]
 
   const rows = (renewals || []).map((r) => {
-    const member = (r as any).members
-    const name = member?.name ?? "Unknown"
+    const name = memberNames.get((r as any).member_id) ?? "Unknown"
 
-    const renewalTimestamp = (r as any).created_at || (r as any).renewal_date
+    const renewalTimestamp = (r as any).created_at
     const dateObj = new Date(renewalTimestamp)
     const dateStr = dateObj.toISOString().split("T")[0]
     const timeStr = dateObj.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
@@ -66,8 +78,8 @@ async function getRenewalLogs(tables: AnalyticsTablesFilter) {
       prevEnd: formatDate(r.previous_end_date),
       newEnd: formatDate(r.new_end_date),
       amount:
-        (r as any).payment_amount != null || (r as any).amount != null
-          ? `₱${Number((r as any).payment_amount ?? (r as any).amount).toFixed(2)}`
+        (r as any).payment_amount != null
+          ? `₱${Number((r as any).payment_amount).toFixed(2)}`
           : "—",
     }
   })

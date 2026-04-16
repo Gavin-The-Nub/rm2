@@ -1,6 +1,6 @@
 import { StatCard } from "@/components/dashboard/StatCard"
 import { MiniChart } from "@/components/dashboard/MiniChart"
-import { WeeklySalesChart } from "@/components/dashboard/WeeklyCharts"
+import { PeakHoursChart } from "@/components/dashboard/PeakHoursChart"
 import { createClient } from "@/utils/supabase/server"
 import { startOfDay, startOfMonth, subDays, format, isAfter, parseISO, isSameDay } from "date-fns"
 import { isSubscriptionCountedActive, memberSubscriptionCategory } from "@/lib/memberSubscription"
@@ -12,9 +12,15 @@ export default async function Dashboard() {
   const supabase = await createClient()
   const { data: membersResponse } = await supabase.from('members').select('*')
   const { data: renewalsResponse } = await supabase.from('renewals').select('*')
+  const attendanceWindowStart = format(subDays(new Date(), 29), "yyyy-MM-dd")
+  const { data: attendanceResponse } = await supabase
+    .from("attendance")
+    .select("check_in_date, created_at")
+    .gte("check_in_date", attendanceWindowStart)
 
   const members = membersResponse || []
   const renewals = renewalsResponse || []
+  const attendance = attendanceResponse || []
   const renewalDate = (r: any) => r.created_at || r.renewal_date
   const renewalAmount = (r: any) => Number(r.payment_amount ?? r.amount ?? 0)
 
@@ -46,6 +52,44 @@ export default async function Dashboard() {
   const expiringSoonCount = members.filter(
     (m) => memberSubscriptionCategory(m) === "expiring_soon"
   ).length
+
+  const todaysCheckIns = attendance.filter(
+    (a) => a.check_in_date && isSameDay(parseISO(a.check_in_date), todayStart)
+  ).length
+
+  const todayAttendance = attendance.filter(
+    (a) => a.check_in_date && isSameDay(parseISO(a.check_in_date), todayStart)
+  )
+
+  const hourLabels = ["6AM", "9AM", "12PM", "3PM", "6PM", "9PM"]
+  const hourBuckets: Record<string, number> = {
+    "6AM": 0,
+    "9AM": 0,
+    "12PM": 0,
+    "3PM": 0,
+    "6PM": 0,
+    "9PM": 0,
+  }
+  todayAttendance.forEach((record) => {
+    if (!record.created_at) return
+    const hour = new Date(record.created_at).getHours()
+    if (hour >= 6 && hour < 9) hourBuckets["6AM"] += 1
+    else if (hour >= 9 && hour < 12) hourBuckets["9AM"] += 1
+    else if (hour >= 12 && hour < 15) hourBuckets["12PM"] += 1
+    else if (hour >= 15 && hour < 18) hourBuckets["3PM"] += 1
+    else if (hour >= 18 && hour < 21) hourBuckets["6PM"] += 1
+    else if (hour >= 21) hourBuckets["9PM"] += 1
+  })
+
+  const peakHoursData = hourLabels.map((label) => ({
+    hour: label,
+    value: hourBuckets[label],
+  }))
+  const peakHourEntry = peakHoursData.reduce(
+    (max, current) => (current.value > max.value ? current : max),
+    { hour: "N/A", value: 0 }
+  )
+  const totalCheckInsToday = todayAttendance.length
 
   // WEEKLY CHARTS DATA PREP
   // Last 7 days including today
@@ -139,8 +183,27 @@ export default async function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 mt-2">
-        <WeeklySalesChart data={weeklySalesData} />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <StatCard
+          title="Today's Check-Ins"
+          value={todaysCheckIns.toString()}
+          className="min-h-[160px]"
+          chart={<MiniChart data={peakHoursData.map((item) => item.value)} color="#10B981" />}
+        />
+        <StatCard
+          title="Today's Peak Hour"
+          value={peakHourEntry.hour === "N/A" ? "N/A" : `${peakHourEntry.hour} (${peakHourEntry.value})`}
+          className="min-h-[160px]"
+          chart={<MiniChart data={peakHoursData.map((item) => item.value)} color="#F97316" />}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        <PeakHoursChart
+          data={peakHoursData}
+          totalCheckIns={totalCheckInsToday}
+          windowLabel="Today"
+        />
       </div>
     </div>
   )

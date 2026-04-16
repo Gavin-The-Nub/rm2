@@ -23,9 +23,12 @@ type CheckInResult = {
   memberName: string
   remaining: string
   attendanceCount: number
+  attendanceDates: string[]
   isSuccess: boolean
   message: string
 }
+
+const CALENDAR_DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
 function getRemainingLabel(endDateISO: string): string {
   const today = parseISODateAtPHMidnight(phTodayISO())
@@ -36,6 +39,52 @@ function getRemainingLabel(endDateISO: string): string {
   if (dayDiff === 0) return "Expires today"
   if (dayDiff === 1) return "1 day remaining"
   return `${dayDiff} days remaining`
+}
+
+function buildAttendanceCalendar(attendanceDates: string[]) {
+  const today = parseISODateAtPHMidnight(phTodayISO())
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+  const countsByDate = new Map<string, number>()
+  for (const date of attendanceDates) {
+    countsByDate.set(date, (countsByDate.get(date) ?? 0) + 1)
+  }
+
+  const leadingEmptyDays = monthStart.getDay()
+  const totalDaysInMonth = monthEnd.getDate()
+  const days = Array.from({ length: totalDaysInMonth }, (_, index) => {
+    const date = new Date(monthStart)
+    date.setDate(monthStart.getDate() + index)
+    const iso = date.toISOString().slice(0, 10)
+    return {
+      dayNumber: index + 1,
+      iso,
+      count: countsByDate.get(iso) ?? 0,
+      isToday: iso === phTodayISO(),
+    }
+  })
+
+  const monthLabel = monthStart.toLocaleString("en-US", { month: "long", year: "numeric" })
+  const totalCells = Math.ceil((leadingEmptyDays + totalDaysInMonth) / 7) * 7
+  const cells = Array.from({ length: totalCells }, (_, idx) => {
+    const dayIndex = idx - leadingEmptyDays
+    if (dayIndex < 0 || dayIndex >= days.length) return null
+    return days[dayIndex]
+  })
+
+  const weeks: (typeof days | Array<null>)[] = []
+  for (let i = 0; i < cells.length; i += 7) {
+    weeks.push(cells.slice(i, i + 7))
+  }
+
+  return { weeks, monthLabel }
+}
+
+function attendanceDayClass(count: number) {
+  if (count === 0) return "bg-white/5 text-muted"
+  if (count === 1) return "bg-emerald-700/75 text-emerald-100"
+  if (count === 2) return "bg-emerald-500/80 text-white"
+  return "bg-emerald-300/90 text-black"
 }
 
 export function KioskCheckIn() {
@@ -130,22 +179,37 @@ export function KioskCheckIn() {
     setIsSubmitting(true)
     setErrorText(null)
 
-    const attendanceCountReq = supabase
-      .from("attendance")
-      .select("id", { count: "exact", head: true })
-      .eq("member_id", member.id)
+    const fetchAttendance = async () => {
+      const [{ count }, { data }] = await Promise.all([
+        supabase.from("attendance").select("id", { count: "exact", head: true }).eq("member_id", member.id),
+        supabase
+          .from("attendance")
+          .select("check_in_date")
+          .eq("member_id", member.id)
+          .gte("check_in_date", (() => {
+            const today = parseISODateAtPHMidnight(phTodayISO())
+            return new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10)
+          })())
+          .lte("check_in_date", (() => {
+            const today = parseISODateAtPHMidnight(phTodayISO())
+            return new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10)
+          })())
+          .order("check_in_date", { ascending: true }),
+      ])
 
-    const countFrom = async () => {
-      const { count } = await attendanceCountReq
-      return count ?? 0
+      return {
+        count: count ?? 0,
+        dates: (data ?? []).map((entry) => entry.check_in_date as string),
+      }
     }
 
     if (!isSubscriptionCountedActive(member)) {
-      const attendanceCount = await countFrom()
+      const attendance = await fetchAttendance()
       setResult({
         memberName: member.name,
         remaining: getRemainingLabel(member.end_date),
-        attendanceCount,
+        attendanceCount: attendance.count,
+        attendanceDates: attendance.dates,
         isSuccess: false,
         message: `${memberStatusLabel(member)} membership cannot check in.`,
       })
@@ -169,11 +233,12 @@ export function KioskCheckIn() {
       return
     }
 
-    const attendanceCount = await countFrom()
+    const attendance = await fetchAttendance()
     setResult({
       memberName: member.name,
       remaining: getRemainingLabel(member.end_date),
-      attendanceCount,
+      attendanceCount: attendance.count,
+      attendanceDates: attendance.dates,
       isSuccess: !duplicate,
       message: duplicate ? "Already checked in today." : "Check-in successful.",
     })
@@ -184,6 +249,11 @@ export function KioskCheckIn() {
     setIsSubmitting(false)
     inputRef.current?.focus()
   }
+
+  const attendanceCalendar = useMemo(
+    () => (result ? buildAttendanceCalendar(result.attendanceDates) : null),
+    [result]
+  )
 
   return (
     <div className="min-h-screen w-full bg-[var(--color-bg-base)] text-primary px-4 py-8 md:px-8 md:py-12">
@@ -261,29 +331,81 @@ export function KioskCheckIn() {
         {result ? (
           <Card
             className={cn(
-              "p-5 md:p-6 border transition-all",
+              "p-5 md:p-6 border transition-all space-y-4",
               result.isSuccess ? "border-emerald-500/30" : "border-amber-500/30"
             )}
           >
             <div className="flex items-start justify-between gap-4">
-              <div className="space-y-2">
-                <p className={cn("text-lg font-semibold", result.isSuccess ? "text-emerald-300" : "text-amber-300")}>
+              <div className="space-y-1">
+                <p className={cn("text-lg md:text-xl font-semibold", result.isSuccess ? "text-emerald-300" : "text-amber-300")}>
                   {result.message}
                 </p>
-                <p className="text-primary">
-                  <span className="text-secondary">Member:</span> {result.memberName}
-                </p>
-                <p className="text-primary">
-                  <span className="text-secondary">Remaining time:</span> {result.remaining}
-                </p>
-                <p className="text-primary">
-                  <span className="text-secondary">Attendance:</span> {result.attendanceCount} total check-ins
-                </p>
+                <p className="text-sm text-secondary">Attendance snapshot for {result.memberName}</p>
               </div>
               <Button variant="secondary" onClick={() => setResult(null)}>
                 Close
               </Button>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-lg border border-white/10 bg-black/10 p-3">
+                <p className="text-[11px] uppercase tracking-wide text-secondary">Member</p>
+                <p className="mt-1 text-sm font-medium text-primary">{result.memberName}</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/10 p-3">
+                <p className="text-[11px] uppercase tracking-wide text-secondary">Remaining Time</p>
+                <p className="mt-1 text-sm font-medium text-primary">{result.remaining}</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-black/10 p-3">
+                <p className="text-[11px] uppercase tracking-wide text-secondary">Total Check-ins</p>
+                <p className="mt-1 text-sm font-medium text-primary">{result.attendanceCount}</p>
+              </div>
+            </div>
+
+            {attendanceCalendar ? (
+              <div className="space-y-3 rounded-lg border border-white/10 bg-black/10 p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-secondary">Attendance calendar</p>
+                  <p className="text-xs text-muted">{attendanceCalendar.monthLabel}</p>
+                </div>
+
+                <div className="grid grid-cols-7 gap-2 text-[11px] text-muted">
+                  {CALENDAR_DAY_LABELS.map((day) => (
+                    <div key={day} className="text-center">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2">
+                  {attendanceCalendar.weeks.map((week, weekIndex) => (
+                    <div key={weekIndex} className="grid grid-cols-7 gap-2">
+                      {week.map((day, dayIndex) =>
+                        day ? (
+                          <div
+                            key={day.iso}
+                            className={cn(
+                              "h-11 rounded-md border border-white/10 px-1.5 py-1 text-right text-xs transition-colors",
+                              attendanceDayClass(day.count),
+                              day.isToday && "ring-1 ring-white/80"
+                            )}
+                            title={`${day.iso}: ${day.count} attendance${day.count === 1 ? "" : "s"}`}
+                          >
+                            <div className="leading-none">{day.dayNumber}</div>
+                            {day.count > 0 ? (
+                              <div className="mt-1 text-[10px] leading-none text-left">{day.count}x</div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <div key={`empty-${weekIndex}-${dayIndex}`} className="h-11 rounded-md border border-white/5 bg-black/10" />
+                        )
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+              </div>
+            ) : null}
           </Card>
         ) : null}
       </div>

@@ -5,6 +5,15 @@ import { createClient } from "@supabase/supabase-js"
 import RevenueCharts from "@/components/analytics/RevenueCharts"
 import type { ChartPeriodBounds } from "@/utils/date-filters"
 
+function normalizeMembershipType(type?: string | null): "1_day" | "weekly" | "monthly" | "student_monthly" {
+  if (!type) return "monthly"
+  if (type === "1_day") return "1_day"
+  if (type === "weekly" || type === "1_week") return "weekly"
+  if (type === "monthly" || type === "1_month") return "monthly"
+  if (type === "student_1_month" || type === "student_monthly") return "student_monthly"
+  return "monthly"
+}
+
 async function getRevenueData(period: ChartPeriodBounds) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -126,21 +135,25 @@ async function getRevenueData(period: ChartPeriodBounds) {
 
   // --- Revenue by Membership Type ---
   const typeColors: Record<string, string> = {
-    "1_day": "#9CA3AF", "1_week": "#3B82F6",
-    "1_month": "#8B5CF6", "student_1_month": "#A855F7",
+    "1_day": "#9CA3AF",
+    "weekly": "#3B82F6",
+    "monthly": "#8B5CF6",
+    "student_monthly": "#A855F7",
   }
   const typeLabels: Record<string, string> = {
-    "1_day": "1 Day", "1_week": "Weekly",
-    "1_month": "Monthly", "student_1_month": "Student",
+    "1_day": "1 Day",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "student_monthly": "Student Monthly",
   }
-  const typeRevMap: Record<string, number> = { "1_day": 0, "1_week": 0, "1_month": 0, "student_1_month": 0 }
+  const typeRevMap: Record<string, number> = { "1_day": 0, "weekly": 0, "monthly": 0, "student_monthly": 0 }
   ;(newMembersThis || []).forEach((m) => {
-    if (m.membership_type in typeRevMap)
-      typeRevMap[m.membership_type] += Number(m.payment_amount || 0)
+    const normalized = normalizeMembershipType(m.membership_type)
+    typeRevMap[normalized] = (typeRevMap[normalized] || 0) + Number(m.payment_amount || 0)
   })
   ;(renewalsThis || []).forEach((r) => {
-    if (r.membership_type in typeRevMap)
-      typeRevMap[r.membership_type] += renewalAmount(r)
+    const normalized = normalizeMembershipType(r.membership_type)
+    typeRevMap[normalized] = (typeRevMap[normalized] || 0) + renewalAmount(r)
   })
 
   const membershipTypeRev = Object.entries(typeRevMap).map(([type, value]) => ({

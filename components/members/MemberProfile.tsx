@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { supabase } from "@/utils/supabase/client"
 import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { Badge } from "@/components/ui/Badge"
 import { format } from "date-fns"
-import { ArrowLeft, User, Calendar, Clock, Loader2, AlertCircle, Mail } from "lucide-react"
+import { ArrowLeft, User, Calendar, Clock, Loader2, AlertCircle, Mail, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { RenewModal } from "./RenewModal"
@@ -25,6 +25,7 @@ type MemberProfileProps = {
 export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false)
+  const [viewMonth, setViewMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -70,6 +71,66 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
   const statusBadgeVariant = memberStatusBadgeVariant(member)
 
   const totalPaid = Number(member.payment_amount) + (member.renewals?.reduce((sum: number, r: any) => sum + Number(r.payment_amount), 0) || 0)
+  const attendanceRecords = member.attendance || []
+  const allTimeVisits = attendanceRecords.length
+
+  const attendanceByDate = useMemo(() => {
+    return attendanceRecords.reduce((acc: Record<string, string[]>, row: any) => {
+      const day = String(row.check_in_date)
+      if (!acc[day]) {
+        acc[day] = []
+      }
+      const timeIn = row.created_at ? format(new Date(row.created_at), "h:mm a") : "Unknown"
+      acc[day].push(timeIn)
+      return acc
+    }, {})
+  }, [attendanceRecords])
+
+  const selectedMonthKey = format(viewMonth, "yyyy-MM")
+  const selectedMonthDays = Object.entries(attendanceByDate)
+    .filter(([date]) => date.startsWith(selectedMonthKey))
+    .sort(([a], [b]) => b.localeCompare(a))
+
+  const monthVisits = selectedMonthDays.reduce((sum, [, times]) => sum + times.length, 0)
+  const now = new Date()
+  const weekStart = new Date(now)
+  weekStart.setDate(now.getDate() - now.getDay())
+  weekStart.setHours(0, 0, 0, 0)
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekStart.getDate() + 6)
+  weekEnd.setHours(23, 59, 59, 999)
+
+  const weekVisits = attendanceRecords.filter((row: any) => {
+    const d = new Date(`${row.check_in_date}T00:00:00`)
+    return d >= weekStart && d <= weekEnd
+  }).length
+
+  const monthStartWeekday = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1).getDay()
+  const daysInMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0).getDate()
+  const prevMonthDays = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 0).getDate()
+
+  const calendarCells: Array<{ key: string; date: Date; inMonth: boolean }> = []
+  for (let i = monthStartWeekday - 1; i >= 0; i--) {
+    const d = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, prevMonthDays - i)
+    calendarCells.push({ key: `prev-${i}`, date: d, inMonth: false })
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    const d = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), day)
+    calendarCells.push({ key: `curr-${day}`, date: d, inMonth: true })
+  }
+  while (calendarCells.length % 7 !== 0) {
+    const nextDay = calendarCells.length - (monthStartWeekday + daysInMonth) + 1
+    const d = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, nextDay)
+    calendarCells.push({ key: `next-${nextDay}`, date: d, inMonth: false })
+  }
+
+  const goToPrevMonth = () => {
+    setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))
+  }
+
+  const goToNextMonth = () => {
+    setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -97,10 +158,9 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Profile & QR */}
-        <div className="lg:col-span-1 flex flex-col gap-6">
-          <Card className="flex flex-col items-center text-center p-8 border border-white/5 relative overflow-hidden">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        <div className="xl:col-span-4">
+          <Card className="h-full flex flex-col items-center text-center p-8 border border-white/5 relative overflow-hidden">
             {/* Status indicator ring around photo */}
             <div
               className={`relative mb-6 rounded-full p-1 ring-2 ${
@@ -143,8 +203,7 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
           </Card>
         </div>
 
-        {/* Right Column - Details & History */}
-        <div className="lg:col-span-2 flex flex-col gap-6">
+        <div className="xl:col-span-8">
           <Card className="p-0 border border-white/5 overflow-hidden">
             <div className="p-6 border-b border-white/5">
               <h3 className="text-sm font-semibold text-secondary uppercase tracking-wider">Membership Details</h3>
@@ -177,7 +236,84 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
 
             </div>
           </Card>
+        </div>
+        
+        <div className="xl:col-span-7">
+          <Card className="p-0 border border-white/5 overflow-hidden">
+            <div className="p-6 border-b border-white/5">
+              <h3 className="text-sm font-semibold text-secondary uppercase tracking-wider">Attendance</h3>
+            </div>
 
+            <div className="p-6 space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl border border-white/5 bg-card/30 p-4">
+                  <p className="text-[11px] text-muted uppercase tracking-wider mb-1">This month</p>
+                  <p className="text-2xl font-semibold text-primary">{monthVisits}</p>
+                </div>
+                <div className="rounded-xl border border-white/5 bg-card/30 p-4">
+                  <p className="text-[11px] text-muted uppercase tracking-wider mb-1">This week</p>
+                  <p className="text-2xl font-semibold text-primary">{weekVisits}</p>
+                </div>
+                <div className="rounded-xl border border-white/5 bg-card/30 p-4">
+                  <p className="text-[11px] text-muted uppercase tracking-wider mb-1">All time</p>
+                  <p className="text-2xl font-semibold text-primary">{allTimeVisits}</p>
+                </div>
+              </div>
+
+              <div className="border-t border-white/5 pt-4 w-full">
+                <div className="flex items-center justify-between mb-4">
+                  <Button variant="secondary" className="px-3 py-2" onClick={goToPrevMonth}>
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <p className="text-lg font-semibold text-primary">{format(viewMonth, "MMMM yyyy")}</p>
+                  <Button variant="secondary" className="px-3 py-2" onClick={goToNextMonth}>
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-7 gap-2 w-full text-center text-xs text-muted uppercase tracking-wider mb-2">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                    <span key={day}>{day}</span>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-7 gap-2 w-full">
+                  {calendarCells.map((cell) => {
+                    const dateKey = format(cell.date, "yyyy-MM-dd")
+                    const times = attendanceByDate[dateKey] || []
+                    const hasVisit = times.length > 0
+                    const formattedDate = format(cell.date, "EEEE, MMM d, yyyy")
+
+                    return (
+                      <div
+                        key={cell.key}
+                        className={`group relative aspect-square rounded-md flex items-center justify-center text-sm border transition-colors ${
+                          cell.inMonth
+                            ? hasVisit
+                              ? "bg-emerald-500/20 border-emerald-400/70 text-emerald-200"
+                              : "bg-card/20 border-white/25 text-primary"
+                            : "bg-transparent border-transparent text-muted/40"
+                        }`}
+                      >
+                        {format(cell.date, "d")}
+                        <div className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-20 w-max max-w-[220px] -translate-x-1/2 rounded-md border border-white/10 bg-black/90 px-2 py-1.5 text-[11px] text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
+                          <p className="whitespace-nowrap">{formattedDate}</p>
+                          {hasVisit ? (
+                            <p className="text-emerald-200">Time in: {times.join(", ")}</p>
+                          ) : (
+                            <p className="text-gray-300">No check-ins</p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+        
+        <div className="xl:col-span-5">
           <Card className="p-0 border border-white/5 overflow-hidden flex-1 min-h-[300px]">
             <div className="p-6 border-b border-white/5 flex justify-between items-center bg-card/50">
               <h3 className="text-sm font-semibold text-secondary uppercase tracking-wider">

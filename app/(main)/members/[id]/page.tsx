@@ -31,6 +31,16 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
       console.error("Error fetching member:", error)
       setMember(null)
     } else {
+      const { data: attendance, error: attendanceError } = await supabase
+        .from("attendance")
+        .select("id, check_in_date, created_at")
+        .eq("member_id", resolvedParams.id)
+        .order("check_in_date", { ascending: false })
+
+      if (attendanceError) {
+        console.warn("Error fetching member attendance:", attendanceError)
+      }
+
       // Load notification logs separately so schema drift on this table
       // cannot block member profile rendering.
       const { data: logs, error: logsError } = await supabase
@@ -45,6 +55,7 @@ export default function MemberProfilePage({ params }: { params: Promise<{ id: st
 
       setMember({
         ...data,
+        attendance: attendance ?? [],
         member_notification_logs: logs ?? [],
       })
     }
