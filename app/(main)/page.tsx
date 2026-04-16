@@ -4,6 +4,7 @@ import { PeakHoursChart } from "@/components/dashboard/PeakHoursChart"
 import { createClient } from "@/utils/supabase/server"
 import { startOfDay, startOfMonth, subDays, format, isAfter, parseISO, isSameDay } from "date-fns"
 import { isSubscriptionCountedActive, memberSubscriptionCategory } from "@/lib/memberSubscription"
+import { PH_TIME_ZONE, phTodayISO } from "@/lib/phTime"
 
 // Ensure dynamic rendering because we fetch live database
 export const dynamic = 'force-dynamic'
@@ -27,6 +28,7 @@ export default async function Dashboard() {
   const today = new Date()
   const todayStart = startOfDay(today)
   const thisMonthStart = startOfMonth(today)
+  const todayInPH = phTodayISO()
   
   // Keep status logic aligned with Members page (considers end_date + raw status)
   const activeMembers = members.filter((m) => isSubscriptionCountedActive(m))
@@ -53,12 +55,17 @@ export default async function Dashboard() {
     (m) => memberSubscriptionCategory(m) === "expiring_soon"
   ).length
 
-  const todaysCheckIns = attendance.filter(
-    (a) => a.check_in_date && isSameDay(parseISO(a.check_in_date), todayStart)
+  const isSameISODate = (value: string | null | undefined, isoDate: string) => {
+    if (!value) return false
+    return value.slice(0, 10) === isoDate
+  }
+
+  const todaysCheckIns = attendance.filter((a) =>
+    isSameISODate(a.check_in_date, todayInPH)
   ).length
 
-  const todayAttendance = attendance.filter(
-    (a) => a.check_in_date && isSameDay(parseISO(a.check_in_date), todayStart)
+  const todayAttendance = attendance.filter((a) =>
+    isSameISODate(a.check_in_date, todayInPH)
   )
 
   const hourLabels = ["6AM", "9AM", "12PM", "3PM", "6PM", "9PM"]
@@ -70,9 +77,25 @@ export default async function Dashboard() {
     "6PM": 0,
     "9PM": 0,
   }
+  const getHourInPH = (value: string): number | null => {
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return null
+    const hourPart = new Intl.DateTimeFormat("en-US", {
+      timeZone: PH_TIME_ZONE,
+      hour: "2-digit",
+      hour12: false,
+    })
+      .formatToParts(date)
+      .find((p) => p.type === "hour")?.value
+    if (!hourPart) return null
+    const parsed = Number(hourPart)
+    return Number.isNaN(parsed) ? null : parsed
+  }
+
   todayAttendance.forEach((record) => {
     if (!record.created_at) return
-    const hour = new Date(record.created_at).getHours()
+    const hour = getHourInPH(record.created_at)
+    if (hour === null) return
     if (hour >= 6 && hour < 9) hourBuckets["6AM"] += 1
     else if (hour >= 9 && hour < 12) hourBuckets["9AM"] += 1
     else if (hour >= 12 && hour < 15) hourBuckets["12PM"] += 1

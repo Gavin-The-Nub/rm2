@@ -8,7 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Fitonist - Gym Management",
+  title: "RM Fitness - Gym Management",
   description: "Gym Membership & Check-In System",
 };
 
