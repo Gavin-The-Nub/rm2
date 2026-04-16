@@ -72,7 +72,7 @@ function buildAttendanceCalendar(attendanceDates: string[]) {
     return days[dayIndex]
   })
 
-  const weeks: (typeof days | Array<null>)[] = []
+  const weeks: Array<Array<(typeof days)[number] | null>> = []
   for (let i = 0; i < cells.length; i += 7) {
     weeks.push(cells.slice(i, i + 7))
   }

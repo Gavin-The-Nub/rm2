@@ -83,11 +83,11 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
       const timeIn = row.created_at ? format(new Date(row.created_at), "h:mm a") : "Unknown"
       acc[day].push(timeIn)
       return acc
-    }, {})
+    }, {} as Record<string, string[]>)
   }, [attendanceRecords])
 
   const selectedMonthKey = format(viewMonth, "yyyy-MM")
-  const selectedMonthDays = Object.entries(attendanceByDate)
+  const selectedMonthDays = (Object.entries(attendanceByDate) as Array<[string, string[]]>)
     .filter(([date]) => date.startsWith(selectedMonthKey))
     .sort(([a], [b]) => b.localeCompare(a))
 
