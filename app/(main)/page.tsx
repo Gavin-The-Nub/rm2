@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/server"
 import { startOfDay, startOfMonth, subDays, format, isAfter, parseISO, isSameDay } from "date-fns"
 import { isSubscriptionCountedActive, memberSubscriptionCategory } from "@/lib/memberSubscription"
 import { PH_TIME_ZONE, phTodayISO } from "@/lib/phTime"
+import { resolveAnalyticsPeriod } from "@/utils/date-filters"
 
 // Ensure dynamic rendering because we fetch live database
 export const dynamic = 'force-dynamic'
@@ -27,7 +28,8 @@ export default async function Dashboard() {
 
   const today = new Date()
   const todayStart = startOfDay(today)
-  const thisMonthStart = startOfMonth(today)
+  const resolved = resolveAnalyticsPeriod({})
+  const { startDate, endDate, prevStart, prevEnd } = resolved.chart
   const todayInPH = phTodayISO()
   
   // Keep status logic aligned with Members page (considers end_date + raw status)
@@ -44,12 +46,36 @@ export default async function Dashboard() {
     .reduce((sum, r) => sum + renewalAmount(r), 0)
   const todaysRevenue = todaysMemberSales + todaysRenewalSales
   
-  // Monthly Revenue
-  const monthlyMemberSales = members.filter(m => m.created_at && (isAfter(parseISO(m.created_at), thisMonthStart) || isSameDay(parseISO(m.created_at), thisMonthStart))).reduce((sum, m) => sum + (m.payment_amount || 0), 0)
+  // Period Revenue (1-15 or 16-end)
+  const monthlyMemberSales = members
+    .filter(m => m.created_at && m.created_at >= startDate + "T00:00:00" && m.created_at <= endDate + "T23:59:59")
+    .reduce((sum, m) => sum + (m.payment_amount || 0), 0)
+  
   const monthlyRenewalSales = renewals
-    .filter(r => renewalDate(r) && (isAfter(parseISO(renewalDate(r)), thisMonthStart) || isSameDay(parseISO(renewalDate(r)), thisMonthStart)))
+    .filter(r => {
+      const d = renewalDate(r)
+      return d && d >= startDate + "T00:00:00" && d <= endDate + "T23:59:59"
+    })
     .reduce((sum, r) => sum + renewalAmount(r), 0)
+  
   const monthlyRevenue = monthlyMemberSales + monthlyRenewalSales
+
+  // Previous Period Revenue (for Delta)
+  const prevMemberSales = members
+    .filter(m => m.created_at && m.created_at >= prevStart + "T00:00:00" && m.created_at <= prevEnd + "T23:59:59")
+    .reduce((sum, m) => sum + (m.payment_amount || 0), 0)
+  
+  const prevRenewalSales = renewals
+    .filter(r => {
+      const d = renewalDate(r)
+      return d && d >= prevStart + "T00:00:00" && d <= prevEnd + "T23:59:59"
+    })
+    .reduce((sum, r) => sum + renewalAmount(r), 0)
+  
+  const prevRevenue = prevMemberSales + prevRenewalSales
+  const revenueDelta = prevRevenue > 0 
+    ? Math.round(((monthlyRevenue - prevRevenue) / prevRevenue) * 100) 
+    : 0
   
   const expiringSoonCount = members.filter(
     (m) => memberSubscriptionCategory(m) === "expiring_soon"
@@ -190,9 +216,10 @@ export default async function Dashboard() {
           chart={<MiniChart data={salesTotals.length > 0 ? salesTotals : [0,0,0,0,0,0,0]} color="#10B981" />}
         />
         <StatCard 
-          title="Monthly Revenue" 
+          title={`${resolved.pageLabel} Revenue`} 
           value={`₱${monthlyRevenue.toLocaleString()}`} 
-          delta={0} 
+          delta={revenueDelta} 
+          deltaLabel="vs prev period"
           className="min-h-[160px]"
           chart={<MiniChart data={salesTotals.length > 0 ? salesTotals : [0,0,0,0,0,0,0]} color="#3B82F6" />}
         />
