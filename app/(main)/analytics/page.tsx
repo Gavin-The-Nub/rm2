@@ -14,11 +14,13 @@ type AnalyticsTab = "revenue" | "memberships" | "member-history" | "renewal-log"
 export default async function AnalyticsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ preset?: string; range?: string; month?: string; year?: string; tab?: string }>
+  searchParams: Promise<{ preset?: string; range?: string; month?: string; year?: string; half?: string; tab?: string }>
 }) {
   const sp = await searchParams
   const month = sp.month ? parseInt(sp.month, 10) : null
-  const year = sp.year ? parseInt(sp.year, 10) : null
+  const year  = sp.year  ? parseInt(sp.year,  10) : null
+  const rawHalf = sp.half ? parseInt(sp.half, 10) : null
+  const half: 1 | 2 | null = rawHalf === 1 ? 1 : rawHalf === 2 ? 2 : null
   const tab = (sp.tab ?? "revenue") as AnalyticsTab
   const activeTab: AnalyticsTab =
     tab === "revenue" || tab === "memberships" || tab === "member-history" || tab === "renewal-log"
@@ -26,17 +28,19 @@ export default async function AnalyticsPage({
       : "revenue"
   const resolved = resolveAnalyticsPeriod({
     preset: sp.preset ?? null,
-    range: sp.range ?? null,
-    month: Number.isFinite(month as number) ? month : null,
-    year: Number.isFinite(year as number) ? year : null,
+    range:  sp.range  ?? null,
+    month:  Number.isFinite(month as number) ? month : null,
+    year:   Number.isFinite(year  as number) ? year  : null,
+    half,
   })
 
   const buildTabHref = (nextTab: AnalyticsTab) => {
     const query = new URLSearchParams()
     if (sp.preset) query.set("preset", sp.preset)
-    if (sp.range) query.set("range", sp.range)
-    if (sp.month) query.set("month", sp.month)
-    if (sp.year) query.set("year", sp.year)
+    if (sp.range)  query.set("range",  sp.range)
+    if (sp.month)  query.set("month",  sp.month)
+    if (sp.year)   query.set("year",   sp.year)
+    if (sp.half)   query.set("half",   sp.half)
     query.set("tab", nextTab)
     return `?${query.toString()}`
   }
