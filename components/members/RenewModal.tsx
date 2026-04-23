@@ -221,7 +221,7 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
                   }`}
                 >
                   <p className="font-semibold text-sm">Regular</p>
-                  <p className="text-xs">{pricing.monthlyRegular.toFixed(2)}</p>
+                  <p className="text-xs">₱{pricing.monthlyRegular.toFixed(2)}</p>
                 </button>
                 <button
                   type="button"
@@ -233,7 +233,7 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
                   }`}
                 >
                   <p className="font-semibold text-sm">Student</p>
-                  <p className="text-xs">{pricing.monthlyStudent.toFixed(2)}</p>
+                  <p className="text-xs">₱{pricing.monthlyStudent.toFixed(2)}</p>
                 </button>
               </div>
             </div>

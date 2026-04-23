@@ -151,3 +151,45 @@ VALUES
   ('monthly_rate', 600.00),
   ('student_rate', 500.00)
 ON CONFLICT (key) DO NOTHING;
+
+-- POS System Schema
+CREATE TABLE public.products (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR NOT NULL,
+    category VARCHAR,
+    price DECIMAL(10, 2) NOT NULL,
+    stock_count INTEGER NOT NULL DEFAULT 0,
+    image_url VARCHAR,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE public.sales (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE RESTRICT,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    total_price DECIMAL(10, 2) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow anon read/write access to products" ON public.products FOR ALL USING (true);
+CREATE POLICY "Allow anon read/write access to sales" ON public.sales FOR ALL USING (true);
+
+-- Sale Trigger for Stock Decrement
+CREATE OR REPLACE FUNCTION public.handle_sale_stock()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE public.products
+    SET stock_count = stock_count - NEW.quantity
+    WHERE id = NEW.product_id;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_sale_created ON public.sales;
+CREATE TRIGGER on_sale_created
+    AFTER INSERT ON public.sales
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_sale_stock();

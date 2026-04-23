@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Dumbbell,
   LogOut,
+  ShoppingCart,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/utils/supabase/client"
@@ -22,6 +23,7 @@ import type { AppRole } from "@/lib/auth/roles"
 
 const allNavItems = [
   { name: "Dashboard", href: "/", icon: Home, roles: ["admin"] as AppRole[] },
+  { name: "Store POS", href: "/pos", icon: ShoppingCart, roles: ["admin", "staff"] },
   { name: "Members", href: "/members", icon: Users, roles: ["admin", "staff"] },
   { name: "Kiosk Check-In", href: "/kiosk-checkin", icon: ScanLine, roles: ["admin", "staff"] },
   { name: "Email Logs", href: "/email-logs", icon: Mail, roles: ["admin"] as AppRole[] },

@@ -49,6 +49,20 @@ async function getRevenueData(period: ChartPeriodBounds) {
     .from("renewals")
     .select("*")
 
+  // Fetch store sales (current period)
+  const { data: salesThis } = await supabase
+    .from("sales")
+    .select("total_price, created_at")
+    .gte("created_at", startDate + "T00:00:00")
+    .lte("created_at", endDate + "T23:59:59")
+
+  // Fetch store sales (prev period)
+  const { data: salesPrev } = await supabase
+    .from("sales")
+    .select("total_price, created_at")
+    .gte("created_at", prevStart + "T00:00:00")
+    .lte("created_at", prevEnd + "T23:59:59")
+
   const renewalsThis = (renewalsThisRaw || []).filter((r: any) => {
     const d = renewalDate(r)
     return d && d >= startDate + "T00:00:00" && d <= endDate + "T23:59:59"
@@ -59,36 +73,46 @@ async function getRevenueData(period: ChartPeriodBounds) {
   })
 
   // --- Compute summary stats ---
-  const totalRevenue =
-    (newMembersThis || []).reduce((s, m) => s + Number(m.payment_amount || 0), 0) +
-    (renewalsThis   || []).reduce((s, r) => s + renewalAmount(r), 0)
-
   const newMemberRevenue = (newMembersThis || []).reduce((s, m) => s + Number(m.payment_amount || 0), 0)
   const renewalRevenue   = (renewalsThis   || []).reduce((s, r) => s + renewalAmount(r), 0)
+  const membershipRevenue = newMemberRevenue + renewalRevenue
+  const storeRevenue = (salesThis || []).reduce((s, sale) => s + Number(sale.total_price || 0), 0)
+  
+  const totalRevenue = membershipRevenue + storeRevenue
 
-  const prevTotalRevenue =
+  const prevMembershipRevenue =
     (newMembersPrev || []).reduce((s, m) => s + Number(m.payment_amount || 0), 0) +
     (renewalsPrev   || []).reduce((s, r) => s + renewalAmount(r), 0)
+  const prevStoreRevenue = (salesPrev || []).reduce((s, sale) => s + Number(sale.total_price || 0), 0)
+  const prevTotalRevenue = prevMembershipRevenue + prevStoreRevenue
 
   const revDelta = prevTotalRevenue > 0
     ? ((totalRevenue - prevTotalRevenue) / prevTotalRevenue) * 100
     : 0
 
+  const membershipRevDelta = prevMembershipRevenue > 0
+    ? ((membershipRevenue - prevMembershipRevenue) / prevMembershipRevenue) * 100
+    : 0
+
+  const storeRevDelta = prevStoreRevenue > 0
+    ? ((storeRevenue - prevStoreRevenue) / prevStoreRevenue) * 100
+    : 0
+
   const totalMembers =
     (newMembersThis || []).length + (renewalsThis || []).length
-  const avgRevPerMember = totalMembers > 0 ? totalRevenue / totalMembers : 0
+  const avgRevPerMember = totalMembers > 0 ? membershipRevenue / totalMembers : 0
 
   // --- Revenue Over Time (daily buckets across the period) ---
   // Show up to last 14 days of the range for readability; bucket into weeks for longer ranges
   const days = Math.round((rangeEndMs - rangeStartMs) / (1000 * 60 * 60 * 24)) + 1
   const useWeekBuckets = days > 14
 
-  const revenueByDay: Record<string, { newMembers: number; renewals: number }> = {}
+  const revenueByDay: Record<string, { newMembers: number; renewals: number; store: number }> = {}
 
   if (useWeekBuckets) {
     // Week buckets: Week 1, Week 2, …
     for (let i = 0; i < Math.ceil(days / 7); i++) {
-      revenueByDay[`Wk ${i + 1}`] = { newMembers: 0, renewals: 0 }
+      revenueByDay[`Wk ${i + 1}`] = { newMembers: 0, renewals: 0, store: 0 }
     }
     const rangeStart = new Date(startDate + "T00:00:00")
     ;(newMembersThis || []).forEach((m) => {
@@ -103,13 +127,19 @@ async function getRevenueData(period: ChartPeriodBounds) {
       const key = `Wk ${Math.min(wk + 1, Math.ceil(days / 7))}`
       if (revenueByDay[key]) revenueByDay[key].renewals += renewalAmount(r)
     })
+    ;(salesThis || []).forEach((s) => {
+      const d = new Date(s.created_at)
+      const wk = Math.floor((d.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24 * 7))
+      const key = `Wk ${Math.min(wk + 1, Math.ceil(days / 7))}`
+      if (revenueByDay[key]) revenueByDay[key].store += Number(s.total_price || 0)
+    })
   } else {
     // Daily: show each day label as "Apr 7"
     const dayMs = 24 * 60 * 60 * 1000
     for (let i = 0; i < days; i++) {
       const d = new Date(rangeStartMs + i * dayMs)
       const key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-      revenueByDay[key] = { newMembers: 0, renewals: 0 }
+      revenueByDay[key] = { newMembers: 0, renewals: 0, store: 0 }
     }
     ;(newMembersThis || []).forEach((m) => {
       const key = new Date(m.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
@@ -118,6 +148,10 @@ async function getRevenueData(period: ChartPeriodBounds) {
     ;(renewalsThis || []).forEach((r) => {
       const key = new Date(renewalDate(r)).toLocaleDateString("en-US", { month: "short", day: "numeric" })
       if (revenueByDay[key]) revenueByDay[key].renewals += renewalAmount(r)
+    })
+    ;(salesThis || []).forEach((s) => {
+      const key = new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      if (revenueByDay[key]) revenueByDay[key].store += Number(s.total_price || 0)
     })
   }
 
@@ -129,7 +163,7 @@ async function getRevenueData(period: ChartPeriodBounds) {
   // Highest revenue day
   let highestRevDay = { day: "N/A", amount: 0 }
   revenueOverTime.forEach((d) => {
-    const total = d.newMembers + d.renewals
+    const total = d.newMembers + d.renewals + d.store
     if (total > highestRevDay.amount) highestRevDay = { day: d.date, amount: total }
   })
 
@@ -180,6 +214,11 @@ async function getRevenueData(period: ChartPeriodBounds) {
     const wi = Math.min(Math.floor((d.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24 * 7)), numWeeks - 1)
     currentWeeks[wi] += renewalAmount(r)
   })
+  ;(salesThis || []).forEach((s) => {
+    const d = new Date(s.created_at)
+    const wi = Math.min(Math.floor((d.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24 * 7)), numWeeks - 1)
+    currentWeeks[wi] += Number(s.total_price || 0)
+  })
   const prevStart2 = new Date(prevStart + "T00:00:00")
   ;(newMembersPrev || []).forEach((m) => {
     const d = new Date(m.created_at)
@@ -191,6 +230,11 @@ async function getRevenueData(period: ChartPeriodBounds) {
     const wi = Math.min(Math.floor((d.getTime() - prevStart2.getTime()) / (1000 * 60 * 60 * 24 * 7)), numWeeks - 1)
     previousWeeks[wi] += renewalAmount(r)
   })
+  ;(salesPrev || []).forEach((s) => {
+    const d = new Date(s.created_at)
+    const wi = Math.min(Math.floor((d.getTime() - prevStart2.getTime()) / (1000 * 60 * 60 * 24 * 7)), numWeeks - 1)
+    previousWeeks[wi] += Number(s.total_price || 0)
+  })
 
   const monthlyComparison = weekBuckets.map((week, i) => ({
     week,
@@ -200,10 +244,14 @@ async function getRevenueData(period: ChartPeriodBounds) {
 
   return {
     totalRevenue,
+    membershipRevenue,
+    storeRevenue,
     newMemberRevenue,
     renewalRevenue,
     avgRevPerMember,
     revDelta,
+    membershipRevDelta,
+    storeRevDelta,
     highestRevDay,
     revenueOverTime,
     membershipTypeRev,
@@ -226,12 +274,16 @@ export async function RevenueAnalytics({ period }: { period: ChartPeriodBounds }
           deltaLabel="vs prev period"
         />
         <StatCard
-          title="New Member Revenue"
-          value={`₱${data.newMemberRevenue.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+          title="Membership Revenue"
+          value={`₱${data.membershipRevenue.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+          delta={parseFloat(data.membershipRevDelta.toFixed(1))}
+          deltaLabel="vs prev period"
         />
         <StatCard
-          title="Renewal Revenue"
-          value={`₱${data.renewalRevenue.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+          title="Store Revenue"
+          value={`₱${data.storeRevenue.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+          delta={parseFloat(data.storeRevDelta.toFixed(1))}
+          deltaLabel="vs prev period"
         />
         <StatCard
           title="Avg Rev / Member"

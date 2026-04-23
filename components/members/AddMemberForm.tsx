@@ -155,7 +155,7 @@ export function AddMemberForm() {
                 <span className={`font-semibold ${type === "1_day" ? "text-accent-primary" : "text-primary"}`}>Session Rate</span>
                 {type === "1_day" && <div className="w-2 h-2 rounded-full bg-accent-primary" />}
               </div>
-              <p className="text-xs text-muted">Per session access. Default: {pricing.session.toFixed(2)}</p>
+              <p className="text-xs text-muted">Per session access. Default: ₱{pricing.session.toFixed(2)}</p>
             </div>
             
             <div 
@@ -170,7 +170,7 @@ export function AddMemberForm() {
                 <span className={`font-semibold ${type === "weekly" ? "text-accent-primary" : "text-primary"}`}>Weekly</span>
                 {type === "weekly" && <div className="w-2 h-2 rounded-full bg-accent-primary" />}
               </div>
-              <p className="text-xs text-muted">7 days access. Default: {pricing.weekly.toFixed(2)}</p>
+              <p className="text-xs text-muted">7 days access. Default: ₱{pricing.weekly.toFixed(2)}</p>
             </div>
             
             <div 
@@ -204,7 +204,7 @@ export function AddMemberForm() {
                 }`}
               >
                 <p className="font-semibold text-primary">Regular</p>
-                <p className="text-xs text-muted">{pricing.monthlyRegular.toFixed(2)}</p>
+                <p className="text-xs text-muted">₱{pricing.monthlyRegular.toFixed(2)}</p>
               </button>
               <button
                 type="button"
@@ -216,7 +216,7 @@ export function AddMemberForm() {
                 }`}
               >
                 <p className="font-semibold text-primary">Student</p>
-                <p className="text-xs text-muted">{pricing.monthlyStudent.toFixed(2)}</p>
+                <p className="text-xs text-muted">₱{pricing.monthlyStudent.toFixed(2)}</p>
               </button>
             </div>
           </div>

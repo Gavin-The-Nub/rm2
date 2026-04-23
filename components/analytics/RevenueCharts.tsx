@@ -33,7 +33,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 interface Props {
-  revenueOverTime: { date: string; newMembers: number; renewals: number }[]
+  revenueOverTime: { date: string; newMembers: number; renewals: number; store: number }[]
   membershipTypeRev: { name: string; value: number; color: string }[]
   totalTypeRev: number
   monthlyComparison: { week: string; current: number; previous: number }[]
@@ -55,6 +55,7 @@ export default function RevenueCharts({
             <div className="flex items-center gap-4 text-xs font-medium">
               <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#3B82F6]"></div><span className="text-gray-400">New Members</span></div>
               <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#10B981]"></div><span className="text-gray-400">Renewals</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#F59E0B]"></div><span className="text-gray-400">Store</span></div>
             </div>
           </div>
           <div className="flex-1 w-full relative -mx-2">
@@ -65,6 +66,7 @@ export default function RevenueCharts({
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
                 <Line type="monotone" dataKey="newMembers" name="New Members" stroke="#3B82F6" strokeWidth={3} dot={false} activeDot={{ r: 6, strokeWidth: 0, fill: '#3B82F6' }} />
                 <Line type="monotone" dataKey="renewals" name="Renewals" stroke="#10B981" strokeWidth={3} dot={false} activeDot={{ r: 6, strokeWidth: 0, fill: '#10B981' }} />
+                <Line type="monotone" dataKey="store" name="Store Sales" stroke="#F59E0B" strokeWidth={3} dot={false} activeDot={{ r: 6, strokeWidth: 0, fill: '#F59E0B' }} />
               </LineChart>
             </ResponsiveContainer>
           </div>

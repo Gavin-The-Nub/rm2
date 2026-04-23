@@ -4,12 +4,13 @@ import { RevenueAnalytics } from "@/components/analytics/RevenueAnalytics"
 import { MembershipAnalytics } from "@/components/analytics/MembershipAnalytics"
 import { MemberHistoryTable } from "@/components/analytics/MemberHistoryTable"
 import { RenewalHistoryLog } from "@/components/analytics/RenewalHistoryLog"
+import { StoreSalesLog } from "@/components/analytics/StoreSalesLog"
 import { resolveAnalyticsPeriod } from "@/utils/date-filters"
 import { HistoryDateFilter } from "@/components/analytics/HistoryDateFilter"
 
 export const dynamic = "force-dynamic"
 
-type AnalyticsTab = "revenue" | "memberships" | "member-history" | "renewal-log"
+type AnalyticsTab = "revenue" | "memberships" | "member-history" | "renewal-log" | "store-sales"
 
 export default async function AnalyticsPage({
   searchParams,
@@ -23,7 +24,7 @@ export default async function AnalyticsPage({
   const half: 1 | 2 | null = rawHalf === 1 ? 1 : rawHalf === 2 ? 2 : null
   const tab = (sp.tab ?? "revenue") as AnalyticsTab
   const activeTab: AnalyticsTab =
-    tab === "revenue" || tab === "memberships" || tab === "member-history" || tab === "renewal-log"
+    tab === "revenue" || tab === "memberships" || tab === "member-history" || tab === "renewal-log" || tab === "store-sales"
       ? tab
       : "revenue"
   const resolved = resolveAnalyticsPeriod({
@@ -50,6 +51,7 @@ export default async function AnalyticsPage({
     { id: "memberships", label: "Memberships" },
     { id: "member-history", label: "Member History" },
     { id: "renewal-log", label: "Renewal Log" },
+    { id: "store-sales", label: "Store Sales" },
   ]
 
   return (
@@ -151,6 +153,20 @@ export default async function AnalyticsPage({
             </div>
             <Suspense fallback={<div className="h-[400px] animate-pulse bg-[var(--color-bg-card)] rounded-xl" />}>
               <RenewalHistoryLog tables={resolved.tables} periodLabel={resolved.pageLabel} />
+            </Suspense>
+          </section>
+        )}
+
+        {activeTab === "store-sales" && (
+          <section id="store-sales">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-white">Store Sales Log</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Showing period: <span className="text-gray-300 font-medium">{resolved.pageLabel}</span>
+              </p>
+            </div>
+            <Suspense fallback={<div className="h-[400px] animate-pulse bg-[var(--color-bg-card)] rounded-xl" />}>
+              <StoreSalesLog tables={resolved.tables} periodLabel={resolved.pageLabel} />
             </Suspense>
           </section>
         )}
