@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
+import { Loader2 } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -78,7 +79,8 @@ export default function LoginPage() {
               {error}
             </p>
           )}
-          <Button type="submit" className="w-full mt-2" disabled={loading}>
+          <Button type="submit" className="w-full mt-2 flex items-center justify-center gap-2" disabled={loading}>
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
             {loading ? "Signing in…" : "Sign in"}
           </Button>
         </form>

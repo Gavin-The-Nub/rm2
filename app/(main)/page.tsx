@@ -14,6 +14,7 @@ export default async function Dashboard() {
   const supabase = await createClient()
   const { data: membersResponse } = await supabase.from('members').select('*')
   const { data: renewalsResponse } = await supabase.from('renewals').select('*')
+  const { data: salesResponse } = await supabase.from('sales').select('*')
   const attendanceWindowStart = format(subDays(new Date(), 29), "yyyy-MM-dd")
   const { data: attendanceResponse } = await supabase
     .from("attendance")
@@ -22,6 +23,7 @@ export default async function Dashboard() {
 
   const members = membersResponse || []
   const renewals = renewalsResponse || []
+  const sales = salesResponse || []
   const attendance = attendanceResponse || []
   const renewalDate = (r: any) => r.created_at || r.renewal_date
   const renewalAmount = (r: any) => Number(r.payment_amount ?? r.amount ?? 0)
@@ -44,7 +46,10 @@ export default async function Dashboard() {
   const todaysRenewalSales = renewals
     .filter(r => renewalDate(r) && isSameDay(parseISO(renewalDate(r)), todayStart))
     .reduce((sum, r) => sum + renewalAmount(r), 0)
-  const todaysRevenue = todaysMemberSales + todaysRenewalSales
+  const todaysStoreSales = sales
+    .filter(s => s.created_at && isSameDay(parseISO(s.created_at), todayStart))
+    .reduce((sum, s) => sum + Number(s.total_price || 0), 0)
+  const todaysRevenue = todaysMemberSales + todaysRenewalSales + todaysStoreSales
   
   // Period Revenue (1-15 or 16-end)
   const monthlyMemberSales = members
@@ -57,8 +62,13 @@ export default async function Dashboard() {
       return d && d >= startDate + "T00:00:00" && d <= endDate + "T23:59:59"
     })
     .reduce((sum, r) => sum + renewalAmount(r), 0)
+
+  const monthlyStoreSales = sales
+    .filter(s => s.created_at && s.created_at >= startDate + "T00:00:00" && s.created_at <= endDate + "T23:59:59")
+    .reduce((sum, s) => sum + Number(s.total_price || 0), 0)
   
-  const monthlyRevenue = monthlyMemberSales + monthlyRenewalSales
+  const monthlyMembershipRevenue = monthlyMemberSales + monthlyRenewalSales
+  const monthlyTotalRevenue = monthlyMembershipRevenue + monthlyStoreSales
 
   // Previous Period Revenue (for Delta)
   const prevMemberSales = members
@@ -71,10 +81,22 @@ export default async function Dashboard() {
       return d && d >= prevStart + "T00:00:00" && d <= prevEnd + "T23:59:59"
     })
     .reduce((sum, r) => sum + renewalAmount(r), 0)
+
+  const prevStoreSales = sales
+    .filter(s => s.created_at && s.created_at >= prevStart + "T00:00:00" && s.created_at <= prevEnd + "T23:59:59")
+    .reduce((sum, s) => sum + Number(s.total_price || 0), 0)
   
-  const prevRevenue = prevMemberSales + prevRenewalSales
-  const revenueDelta = prevRevenue > 0 
-    ? Math.round(((monthlyRevenue - prevRevenue) / prevRevenue) * 100) 
+  const prevMembershipRevenue = prevMemberSales + prevRenewalSales
+  const prevTotalRevenue = prevMembershipRevenue + prevStoreSales
+
+  const revenueDelta = prevTotalRevenue > 0 
+    ? Math.round(((monthlyTotalRevenue - prevTotalRevenue) / prevTotalRevenue) * 100) 
+    : 0
+  const membershipRevenueDelta = prevMembershipRevenue > 0
+    ? Math.round(((monthlyMembershipRevenue - prevMembershipRevenue) / prevMembershipRevenue) * 100)
+    : 0
+  const storeRevenueDelta = prevStoreSales > 0
+    ? Math.round(((monthlyStoreSales - prevStoreSales) / prevStoreSales) * 100)
     : 0
   
   const expiringSoonCount = members.filter(
@@ -156,6 +178,7 @@ export default async function Dashboard() {
     let oneDaySales = 0
     let weeklySales = 0
     let monthlySales = 0
+    let storeSales = 0
 
     const processPayment = (type: string, amount: number) => {
       if (type === '1_day') oneDaySales += amount
@@ -174,12 +197,18 @@ export default async function Dashboard() {
       processPayment(r.membership_type || parentMember?.membership_type || '1_month', renewalAmount(r))
     })
 
+    // Store sales on this day
+    sales.filter(s => s.created_at && isDay(s.created_at)).forEach(s => {
+      storeSales += Number(s.total_price || 0)
+    })
+
     return {
       name: day.name,
       '1 Day': oneDaySales,
       'Weekly': weeklySales,
       'Monthly': monthlySales,
-      total: oneDaySales + weeklySales + monthlySales
+      'Store': storeSales,
+      total: oneDaySales + weeklySales + monthlySales + storeSales
     }
   })
 
@@ -216,24 +245,32 @@ export default async function Dashboard() {
           chart={<MiniChart data={salesTotals.length > 0 ? salesTotals : [0,0,0,0,0,0,0]} color="#10B981" />}
         />
         <StatCard 
-          title={`${resolved.pageLabel} Revenue`} 
-          value={`₱${monthlyRevenue.toLocaleString()}`} 
+          title={`${resolved.pageLabel} Total Rev`} 
+          value={`₱${monthlyTotalRevenue.toLocaleString()}`} 
           delta={revenueDelta} 
           deltaLabel="vs prev period"
           className="min-h-[160px]"
           chart={<MiniChart data={salesTotals.length > 0 ? salesTotals : [0,0,0,0,0,0,0]} color="#3B82F6" />}
         />
         <StatCard 
-          title="Expiring in 3 Days" 
-          value={expiringSoonCount.toString()} 
-          delta={0} 
-          deltaLabel="Needs attention"
-          className="md:col-span-2 min-h-[160px]"
-          chart={<MiniChart data={[0,0,0,0,0,0,0]} color="#F97316" />}
+          title="Membership Rev" 
+          value={`₱${monthlyMembershipRevenue.toLocaleString()}`} 
+          delta={membershipRevenueDelta} 
+          deltaLabel="vs prev period"
+          className="min-h-[160px]"
+          chart={<MiniChart data={salesTotals.length > 0 ? salesTotals : [0,0,0,0,0,0,0]} color="#8B5CF6" />}
+        />
+        <StatCard 
+          title="Store Rev" 
+          value={`₱${monthlyStoreSales.toLocaleString()}`} 
+          delta={storeRevenueDelta} 
+          deltaLabel="vs prev period"
+          className="min-h-[160px]"
+          chart={<MiniChart data={salesTotals.length > 0 ? salesTotals : [0,0,0,0,0,0,0]} color="#F59E0B" />}
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard
           title="Today's Check-Ins"
           value={todaysCheckIns.toString()}
@@ -245,6 +282,14 @@ export default async function Dashboard() {
           value={peakHourEntry.hour === "N/A" ? "N/A" : `${peakHourEntry.hour} (${peakHourEntry.value})`}
           className="min-h-[160px]"
           chart={<MiniChart data={peakHoursData.map((item) => item.value)} color="#F97316" />}
+        />
+        <StatCard 
+          title="Expiring in 3 Days" 
+          value={expiringSoonCount.toString()} 
+          delta={0} 
+          deltaLabel="Needs attention"
+          className="min-h-[160px]"
+          chart={<MiniChart data={[0,0,0,0,0,0,0]} color="#EF4444" />}
         />
       </div>
 

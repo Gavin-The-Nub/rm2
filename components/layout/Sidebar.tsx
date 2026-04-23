@@ -16,6 +16,7 @@ import {
   Dumbbell,
   LogOut,
   ShoppingCart,
+  Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/utils/supabase/client"
@@ -41,11 +42,13 @@ export function Sidebar({
   role: AppRole
 }) {
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isSigningOut, setIsSigningOut] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const navItems = allNavItems.filter((item) => item.roles.includes(role))
 
   const signOut = async () => {
+    setIsSigningOut(true)
     await supabase.auth.signOut()
     router.push("/login")
     router.refresh()
@@ -119,15 +122,18 @@ export function Sidebar({
           <button
             type="button"
             onClick={signOut}
+            disabled={isSigningOut}
             title={isCollapsed ? "Sign out" : undefined}
             className={cn(
-              "flex items-center h-12 w-full relative transition-all duration-300 rounded-xl text-[var(--color-text-secondary)] hover:text-white hover:bg-white/[0.04]",
+              "flex items-center h-12 w-full relative transition-all duration-300 rounded-xl text-[var(--color-text-secondary)] hover:text-white hover:bg-white/[0.04] disabled:opacity-50",
               isCollapsed ? "justify-center px-0" : "px-3 gap-3"
             )}
           >
-            <LogOut size={20} />
+            {isSigningOut ? <Loader2 size={20} className="animate-spin" /> : <LogOut size={20} />}
             {!isCollapsed && (
-              <span className="text-sm font-medium tracking-wide">Sign out</span>
+              <span className="text-sm font-medium tracking-wide">
+                {isSigningOut ? "Signing out..." : "Sign out"}
+              </span>
             )}
           </button>
         </div>
@@ -160,10 +166,11 @@ export function Sidebar({
         <button
           type="button"
           onClick={signOut}
+          disabled={isSigningOut}
           aria-label="Sign out"
-          className="flex flex-col items-center justify-center flex-1 min-w-0 h-14 relative text-white/50 hover:text-white/80 transition-colors"
+          className="flex flex-col items-center justify-center flex-1 min-w-0 h-14 relative text-white/50 hover:text-white/80 transition-colors disabled:opacity-50"
         >
-          <LogOut size={24} />
+          {isSigningOut ? <Loader2 size={24} className="animate-spin" /> : <LogOut size={24} />}
         </button>
       </nav>
     </div>
