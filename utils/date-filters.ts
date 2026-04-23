@@ -170,8 +170,8 @@ export function resolveAnalyticsPeriod(params: {
   preset?: string | null
   /** Legacy `range` query param — treated as preset */
   range?: string | null
-  month: number | null
-  year: number | null
+  month?: number | null
+  year?: number | null
   half?: number | null
 }): ResolvedAnalyticsPeriod {
   const now    = parseISODateAtPHMidnight(phTodayISO())

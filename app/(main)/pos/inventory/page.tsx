@@ -378,7 +378,7 @@ export default function InventoryPage() {
             </div>
 
             <div className="px-6 py-5 bg-white/[0.02] border-t border-white/[0.05] flex gap-3 justify-end">
-              <Button onClick={handleCloseModal} variant="outline" className="opacity-80 hover:opacity-100">
+              <Button onClick={handleCloseModal} variant="ghost" className="opacity-80 hover:opacity-100">
                 Cancel
               </Button>
               <Button onClick={handleSave} className="bg-[#0A84FF] hover:bg-[#0A84FF]/90 text-white min-w-[100px]">

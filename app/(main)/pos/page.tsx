@@ -114,13 +114,12 @@ export default function POSPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <Button 
-              asChild
-              variant="outline" 
-              className="hidden sm:flex h-11 border-white/[0.08] hover:bg-white/[0.04] text-[var(--text-secondary)] hover:text-white"
+            <Link 
+              href="/pos/inventory"
+              className="hidden sm:flex items-center justify-center h-11 px-4 rounded-xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] text-[var(--text-secondary)] hover:text-white transition-colors"
             >
-              <Link href="/pos/inventory">Inventory</Link>
-            </Button>
+              Inventory
+            </Link>
           </div>
         </div>
 
