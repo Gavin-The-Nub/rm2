@@ -6,44 +6,32 @@ import { ChevronDown } from "lucide-react"
 import {
   RANGES,
   MONTH_SHORT,
-  halfEndDay,
   currentAnalyticsPeriod,
 } from "@/utils/date-filters"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PeriodOption {
-  /** URL-safe value: "m{month}-h{half}" e.g. "m1-h1" */
+  /** URL-safe value: "m{month}" e.g. "m1" */
   value: string
   label: string
   month: number
-  half: 1 | 2
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildPeriodOptions(): PeriodOption[] {
   const options: PeriodOption[] = []
-  // We build the list for a current year; we'll later suffix year if needed.
-  // The year-select is separate, so labels don't include year here.
   for (let m = 1; m <= 12; m++) {
-    const mon = MONTH_SHORT[m - 1]
+    const startMon = MONTH_SHORT[m - 1]
+    let endMonth = m + 1
+    if (endMonth > 12) endMonth = 1
+    const endMon = MONTH_SHORT[endMonth - 1]
+
     options.push({
-      value: `m${m}-h1`,
-      label: `${mon} 1-15`,
+      value: `m${m}`,
+      label: `${startMon} 16 - ${endMon} 15`,
       month: m,
-      half: 1,
-    })
-    // For half=2 the end-day depends on the selected year; we'll resolve it
-    // on select — but for the label in the dropdown we use a placeholder year.
-    // We display e.g. "Jan 16-31" using the current year's last day.
-    const now = new Date()
-    const endDay = halfEndDay(m, now.getFullYear(), 2)
-    options.push({
-      value: `m${m}-h2`,
-      label: `${mon} 16-${endDay}`,
-      month: m,
-      half: 2,
     })
   }
   return options
@@ -80,31 +68,27 @@ export function HistoryDateFilter() {
   // Determine current calendar selection
   const paramMonth = searchParams.get("month")
   const paramYear  = searchParams.get("year")
-  const paramHalf  = searchParams.get("half")
 
   const isAllTime =
-    !paramMonth && !paramYear && !activePreset && !paramHalf
+    !paramMonth && !paramYear && !activePreset
 
   // Resolve current period selection for the dropdowns
   const defaultPeriod = currentAnalyticsPeriod()
 
   const currentMonth = paramMonth ? parseInt(paramMonth, 10) : defaultPeriod.month
   const currentYear  = paramYear  ? parseInt(paramYear,  10) : defaultPeriod.year
-  const currentHalf  = paramHalf  ? (parseInt(paramHalf, 10) as 1 | 2) : defaultPeriod.half
 
   // Current select value for the period dropdown
-  const periodValue = `m${currentMonth}-h${currentHalf}`
+  const periodValue = `m${currentMonth}`
 
   // ── Auto-default on first load (no params) ──────────────────────────────
   useEffect(() => {
     if (!searchParams.get("month") && !searchParams.get("year") &&
-        !searchParams.get("half")  && !searchParams.get("preset") &&
-        !searchParams.get("range")) {
+        !searchParams.get("preset") && !searchParams.get("range")) {
       const p = currentAnalyticsPeriod()
       const params = new URLSearchParams(searchParams.toString())
       params.set("month", String(p.month))
       params.set("year",  String(p.year))
-      params.set("half",  String(p.half))
       // Use replace so back-button doesn't loop
       router.replace(`${pathname}?${params.toString()}`, { scroll: false })
     }
@@ -124,7 +108,6 @@ export function HistoryDateFilter() {
     const params = new URLSearchParams(searchParams.toString())
     params.delete("month")
     params.delete("year")
-    params.delete("half")
     params.delete("preset")
     params.delete("range")
     pushParams(params)
@@ -134,23 +117,20 @@ export function HistoryDateFilter() {
     const params = new URLSearchParams(searchParams.toString())
     params.delete("month")
     params.delete("year")
-    params.delete("half")
     params.delete("range")
     params.set("preset", value)
     pushParams(params)
   }
 
   function handlePeriodChange(value: string) {
-    // value is like "m4-h1" or "m12-h2"
-    const match = value.match(/^m(\d+)-h([12])$/)
+    // value is like "m4"
+    const match = value.match(/^m(\d+)$/)
     if (!match) return
     const m = parseInt(match[1], 10)
-    const h = parseInt(match[2], 10) as 1 | 2
     const params = new URLSearchParams(searchParams.toString())
     params.delete("preset")
     params.delete("range")
     params.set("month", String(m))
-    params.set("half",  String(h))
     if (!params.get("year")) params.set("year", String(now.getFullYear()))
     pushParams(params)
   }
@@ -160,9 +140,8 @@ export function HistoryDateFilter() {
     params.delete("preset")
     params.delete("range")
     params.set("year", value)
-    // Keep current month+half or default to current period
+    // Keep current month or default to current period
     if (!params.get("month")) params.set("month", String(defaultPeriod.month))
-    if (!params.get("half"))  params.set("half",  String(defaultPeriod.half))
     pushParams(params)
   }
 

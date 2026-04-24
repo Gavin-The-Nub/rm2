@@ -58,75 +58,52 @@ export type ResolvedAnalyticsPeriod = {
   tables: AnalyticsTablesFilter
 }
 
-// ─── Half-month helpers ───────────────────────────────────────────────────────
+// ─── Monthly Period Helpers ───────────────────────────────────────────────────
 
 /**
- * Returns the half-month period number for today (PH time).
- * 1 = days 1–15, 2 = days 16–end.
+ * Short period label: "Jan 16 - Feb 15"
  */
-export function currentHalf(now: Date): 1 | 2 {
-  return now.getDate() <= 15 ? 1 : 2
+export function monthlyPeriodLabel(month: number, year: number): string {
+  const startMon = MONTH_SHORT[month - 1]
+  let endMonth = month + 1
+  if (endMonth > 12) endMonth = 1
+  const endMon = MONTH_SHORT[endMonth - 1]
+  return `${startMon} 16 - ${endMon} 15`
 }
 
 /**
- * Returns the last day of a half:
- *  half=1 always ends on day 15.
- *  half=2 ends on the last day of the month.
+ * Builds ISO startDate / endDate strings for a given monthly period.
+ * Starts on the 16th of the given month, ends on the 15th of the next month.
  */
-export function halfEndDay(month: number, year: number, half: 1 | 2): number {
-  if (half === 1) return 15
-  return new Date(year, month, 0).getDate() // last day of the month
-}
-
-/**
- * Short period label: "Jan 1-15" or "Jan 16-31"
- */
-export function halfMonthLabel(month: number, year: number, half: 1 | 2): string {
-  const mon = MONTH_SHORT[month - 1]
-  const endDay = halfEndDay(month, year, half)
-  return half === 1 ? `${mon} 1-15` : `${mon} 16-${endDay}`
-}
-
-/**
- * Builds ISO startDate / endDate strings for a given half-month period.
- */
-export function halfMonthBounds(
+export function monthlyPeriodBounds(
   month: number,
-  year: number,
-  half: 1 | 2
+  year: number
 ): { startDate: string; endDate: string } {
   const mm = String(month).padStart(2, "0")
-  if (half === 1) {
-    return {
-      startDate: `${year}-${mm}-01`,
-      endDate:   `${year}-${mm}-15`,
-    }
+  const startDate = `${year}-${mm}-16`
+
+  let endMonth = month + 1
+  let endYear = year
+  if (endMonth > 12) {
+    endMonth = 1
+    endYear++
   }
-  const lastDay = new Date(year, month, 0).getDate()
-  const dd = String(lastDay).padStart(2, "0")
-  return {
-    startDate: `${year}-${mm}-16`,
-    endDate:   `${year}-${mm}-${dd}`,
-  }
+  const endMm = String(endMonth).padStart(2, "0")
+  const endDate = `${endYear}-${endMm}-15`
+
+  return { startDate, endDate }
 }
 
 /**
- * Returns the previous half-period before the given one.
- * prev of Jan 1-15  → Dec 16-31 (prev year)
- * prev of Jan 16-31 → Jan 1-15
+ * Returns the previous monthly period before the given one.
  */
-export function prevHalfMonth(
+export function prevMonthlyPeriod(
   month: number,
-  year: number,
-  half: 1 | 2
-): { month: number; year: number; half: 1 | 2 } {
-  if (half === 2) {
-    return { month, year, half: 1 }
-  }
-  // half === 1: go to month-1 half 2
+  year: number
+): { month: number; year: number } {
   const prevMonth = month === 1 ? 12 : month - 1
   const prevYear  = month === 1 ? year - 1 : year
-  return { month: prevMonth, year: prevYear, half: 2 }
+  return { month: prevMonth, year: prevYear }
 }
 
 // ─── Rolling prev period (for preset ranges) ─────────────────────────────────
@@ -140,19 +117,26 @@ function rollingPrevPeriod(startDate: string): { prevStart: string; prevEnd: str
   return { prevStart, prevEnd }
 }
 
-// ─── What is "current" half-month? ───────────────────────────────────────────
+// ─── What is "current" period? ───────────────────────────────────────────────
 
 /**
- * Returns the { month, year, half } that represents the current active
+ * Returns the { month, year } that represents the current active
  * analytics period based on today's PH date.
  */
-export function currentAnalyticsPeriod(): { month: number; year: number; half: 1 | 2 } {
+export function currentAnalyticsPeriod(): { month: number; year: number } {
   const now = parseISODateAtPHMidnight(phTodayISO())
-  return {
-    month: now.getMonth() + 1,
-    year:  now.getFullYear(),
-    half:  currentHalf(now),
+  let m = now.getMonth() + 1
+  let y = now.getFullYear()
+  
+  // If it's before the 16th, we are in the previous month's period
+  if (now.getDate() <= 15) {
+    m -= 1
+    if (m === 0) {
+      m = 12
+      y -= 1
+    }
   }
+  return { month: m, year: y }
 }
 
 // ─── Main resolver ────────────────────────────────────────────────────────────
@@ -162,9 +146,8 @@ export function currentAnalyticsPeriod(): { month: number; year: number; half: 1
  *
  * Priority:
  *  1. Quick preset (rolling N days)
- *  2. Calendar half-month (month + year + half)
- *  3. Legacy full-month (month + year, no half) — treated as half=current
- *  4. Default: current half-month period
+ *  2. Calendar monthly period (month + year)
+ *  3. Default: current monthly period
  */
 export function resolveAnalyticsPeriod(params: {
   preset?: string | null
@@ -172,9 +155,7 @@ export function resolveAnalyticsPeriod(params: {
   range?: string | null
   month?: number | null
   year?: number | null
-  half?: number | null
 }): ResolvedAnalyticsPeriod {
-  const now    = parseISODateAtPHMidnight(phTodayISO())
   const legacy = params.range && PRESET_VALUES.has(params.range) ? params.range : null
   const preset =
     (params.preset && PRESET_VALUES.has(params.preset) ? params.preset : null) || legacy
@@ -192,21 +173,17 @@ export function resolveAnalyticsPeriod(params: {
     }
   }
 
-  // ── 2. Half-month selection ───────────────────────────────────────────────
-  const rawHalf = params.half != null ? Number(params.half) : null
-  const half: 1 | 2 | null = rawHalf === 1 ? 1 : rawHalf === 2 ? 2 : null
-
+  // ── 2. Monthly Period selection ──────────────────────────────────────────
   const hasPeriod = params.month != null && params.year != null
 
   if (hasPeriod) {
     const m = params.month!
     const y = params.year!
-    const h: 1 | 2 = half ?? currentHalf(now)
 
-    const { startDate, endDate } = halfMonthBounds(m, y, h)
-    const prev = prevHalfMonth(m, y, h)
-    const { startDate: prevStart, endDate: prevEnd } = halfMonthBounds(prev.month, prev.year, prev.half)
-    const label = `${halfMonthLabel(m, y, h)} ${y}`
+    const { startDate, endDate } = monthlyPeriodBounds(m, y)
+    const prev = prevMonthlyPeriod(m, y)
+    const { startDate: prevStart, endDate: prevEnd } = monthlyPeriodBounds(prev.month, prev.year)
+    const label = `${monthlyPeriodLabel(m, y)} ${y}`
 
     return {
       pageLabel:  label,
@@ -216,12 +193,12 @@ export function resolveAnalyticsPeriod(params: {
     }
   }
 
-  // ── 3. Default: current half-month ────────────────────────────────────────
+  // ── 3. Default: current monthly period ────────────────────────────────────
   const cur = currentAnalyticsPeriod()
-  const { startDate, endDate } = halfMonthBounds(cur.month, cur.year, cur.half)
-  const prev = prevHalfMonth(cur.month, cur.year, cur.half)
-  const { startDate: prevStart, endDate: prevEnd } = halfMonthBounds(prev.month, prev.year, prev.half)
-  const label = `${halfMonthLabel(cur.month, cur.year, cur.half)} ${cur.year}`
+  const { startDate, endDate } = monthlyPeriodBounds(cur.month, cur.year)
+  const prev = prevMonthlyPeriod(cur.month, cur.year)
+  const { startDate: prevStart, endDate: prevEnd } = monthlyPeriodBounds(prev.month, prev.year)
+  const label = `${monthlyPeriodLabel(cur.month, cur.year)} ${cur.year}`
 
   return {
     pageLabel:  label,
