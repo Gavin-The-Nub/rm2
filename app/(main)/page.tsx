@@ -219,13 +219,13 @@ export default async function Dashboard() {
         <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         <StatCard 
           title="Total Active Members" 
           value={totalActiveMembers.toLocaleString()} 
           delta={0} // Kept for layout, could be calculated against last month
           deltaLabel="vs last month"
-          className="md:col-span-2 min-h-[160px]"
+          className="md:col-span-2 xl:col-span-2 min-h-[160px]"
           chart={<MiniChart data={salesTotals.length > 0 ? salesTotals : [0,0,0,0,0,0,0]} color="#3B82F6" />}
         />
         <StatCard 
@@ -237,7 +237,7 @@ export default async function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard 
           title="Today's Revenue" 
           value={`₱${todaysRevenue.toLocaleString()}`} 
@@ -270,7 +270,7 @@ export default async function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         <StatCard
           title="Today's Check-Ins"
           value={todaysCheckIns.toString()}
