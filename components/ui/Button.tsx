@@ -15,7 +15,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         case "default":
           return "bg-[#0A84FF] text-white shadow-[0_4px_14px_rgba(10,132,255,0.4)] hover:brightness-110"
         case "secondary":
-          return "bg-white/10 text-white backdrop-blur-md border border-white/10 shadow-[0_4px_14px_rgba(0,0,0,0.1)] hover:bg-white/15"
+          return "bg-white/10 text-white backdrop-blur-md border border-white/20 shadow-[0_4px_14px_rgba(0,0,0,0.1)] hover:bg-white/15"
         case "danger":
           return "bg-[#FF453A] text-white shadow-[0_4px_14px_rgba(255,69,58,0.4)] hover:brightness-110"
         case "ghost":

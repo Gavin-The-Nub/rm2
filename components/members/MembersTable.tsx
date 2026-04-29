@@ -172,8 +172,8 @@ export function MembersTable() {
 
   return (
     <>
-      <Card className="flex flex-col h-full overflow-hidden p-0 border border-white/5">
-      <div className="p-4 border-b border-white/5 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+      <Card className="flex flex-col h-full overflow-hidden p-0 border border-white/10">
+      <div className="p-4 border-b border-white/10 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
           <Input 
@@ -203,14 +203,14 @@ export function MembersTable() {
       </div>
 
       {showFilters && (
-        <div className="px-4 py-3 border-b border-white/5 bg-white/[0.02]">
+        <div className="px-4 py-3 border-b border-white/10 bg-white/[0.02]">
           <div className="flex flex-col md:flex-row md:items-end gap-3">
             <div className="flex flex-col gap-1">
               <label className="text-[11px] uppercase tracking-wider text-muted">Membership Type</label>
               <select
                 value={membershipTypeFilter}
                 onChange={(e) => setMembershipTypeFilter(e.target.value as MembershipTypeFilter)}
-                className="h-9 min-w-[170px] rounded-md border border-white/10 bg-black/20 px-3 text-sm text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0A84FF]/60"
+                className="h-9 min-w-[170px] rounded-md border border-white/20 bg-black/20 px-3 text-sm text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0A84FF]/60"
               >
                 <option value="all">All types</option>
                 <option value="1_day">1 Day</option>
@@ -223,7 +223,7 @@ export function MembersTable() {
               <select
                 value={membershipStatusFilter}
                 onChange={(e) => setMembershipStatusFilter(e.target.value as MembershipStatusFilter)}
-                className="h-9 min-w-[170px] rounded-md border border-white/10 bg-black/20 px-3 text-sm text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0A84FF]/60"
+                className="h-9 min-w-[170px] rounded-md border border-white/20 bg-black/20 px-3 text-sm text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0A84FF]/60"
               >
                 <option value="all">All statuses</option>
                 <option value="active">Active</option>
@@ -245,7 +245,7 @@ export function MembersTable() {
         </div>
       )}
 
-      <div className="px-4 pb-3 border-b border-white/5 overflow-x-auto">
+      <div className="px-4 pb-3 border-b border-white/10 overflow-x-auto">
         <div className="flex flex-wrap gap-2 min-w-min">
           {tabs.map((t) => {
             const count = tabCounts[t.id]
@@ -279,7 +279,7 @@ export function MembersTable() {
 
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm whitespace-nowrap">
-          <thead className="bg-card/50 text-muted uppercase text-[11px] font-medium tracking-wider border-b border-white/5">
+          <thead className="bg-card/50 text-muted uppercase text-[11px] font-medium tracking-wider border-b border-white/10">
             <tr>
               <th className="px-6 py-4">Member</th>
               <th className="px-6 py-4">Status</th>
@@ -290,7 +290,7 @@ export function MembersTable() {
               <th className="px-6 py-4"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody className="divide-y divide-white/10">
             {loading ? (
               <tr>
                 <td colSpan={7} className="px-6 py-8 text-center text-muted">Loading members...</td>

@@ -5,14 +5,17 @@ import { Plus, Search, Edit2, PackagePlus, ArrowLeft, Upload, Image as ImageIcon
 import { supabase } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/Button"
 import Link from "next/link"
+import { toast } from "sonner"
 
 type Product = {
   id: string
   name: string
   category: string
   price: number
-  stock_count: number
+  stock_count: number | null
+  total_sold: number
   image_url: string | null
+  is_archived: boolean
 }
 
 export default function InventoryPage() {
@@ -58,7 +61,7 @@ export default function InventoryPage() {
         name: product.name,
         category: product.category || "Drinks",
         price: product.price.toString(),
-        stock_count: product.stock_count.toString(),
+        stock_count: product.stock_count !== null ? product.stock_count.toString() : "",
         image_url: product.image_url || ""
       })
     } else {
@@ -74,16 +77,20 @@ export default function InventoryPage() {
   }
 
   const handleSave = async () => {
-    if (!formData.name || !formData.price || !formData.stock_count) {
-      alert("Please fill in all required fields")
+    if (!formData.name || !formData.price) {
+      toast.error("Please fill in all required fields")
       return
     }
+
+    const parsedStock = formData.stock_count.trim().toUpperCase() === "NA" || formData.stock_count.trim() === "" 
+      ? null 
+      : parseInt(formData.stock_count, 10);
 
     const payload = {
       name: formData.name,
       category: formData.category,
       price: parseFloat(formData.price),
-      stock_count: parseInt(formData.stock_count, 10),
+      stock_count: parsedStock,
       image_url: formData.image_url || null
     }
 
@@ -93,18 +100,44 @@ export default function InventoryPage() {
         .update(payload)
         .eq("id", editingProduct.id)
       
-      if (error) alert("Error updating product: " + error.message)
-      else fetchProducts()
+      if (error) toast.error("Error updating product: " + error.message)
+      else {
+        toast.success("Product updated successfully")
+        fetchProducts()
+      }
     } else {
       const { error } = await supabase
         .from("products")
         .insert([payload])
       
-      if (error) alert("Error creating product: " + error.message)
-      else fetchProducts()
+      if (error) toast.error("Error creating product: " + error.message)
+      else {
+        toast.success("Product created successfully")
+        fetchProducts()
+      }
     }
 
     handleCloseModal()
+  }
+
+  const handleArchive = async () => {
+    if (!editingProduct) return
+    
+    const confirmed = confirm(`Are you sure you want to archive "${editingProduct.name}"? It will no longer appear in the POS.`)
+    if (!confirmed) return
+
+    const { error } = await supabase
+      .from("products")
+      .update({ is_archived: true })
+      .eq("id", editingProduct.id)
+
+    if (error) {
+      toast.error("Error archiving product: " + error.message)
+    } else {
+      toast.success("Product archived successfully")
+      fetchProducts()
+      handleCloseModal()
+    }
   }
 
   const handleDrag = (e: React.DragEvent) => {
@@ -128,7 +161,7 @@ export default function InventoryPage() {
 
   const handleFileUpload = async (file: File) => {
     if (!file.type.startsWith('image/')) {
-      alert("Please upload an image file")
+      toast.error("Please upload an image file")
       return
     }
 
@@ -150,14 +183,17 @@ export default function InventoryPage() {
 
       setFormData(prev => ({ ...prev, image_url: publicUrl }))
     } catch (error: any) {
-      alert("Error uploading image: " + error.message)
+      toast.error("Error uploading image: " + error.message)
     } finally {
       setUploading(false)
     }
   }
 
 
-  const filteredProducts = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+  const filteredProducts = products.filter(p => 
+    !p.is_archived && 
+    p.name.toLowerCase().includes(search.toLowerCase())
+  )
 
   return (
     <div className="flex flex-col h-full space-y-6 pt-4">
@@ -180,14 +216,14 @@ export default function InventoryPage() {
         </Button>
       </div>
 
-      <div className="bg-[var(--bg-card)] rounded-[20px] border border-white/[0.05] shadow-lg flex-1 overflow-hidden flex flex-col relative">
-        <div className="p-4 border-b border-white/[0.05] flex justify-between items-center bg-white/[0.01]">
+      <div className="bg-[var(--bg-card)] rounded-[20px] border border-white/10 shadow-lg flex-1 overflow-hidden flex flex-col relative">
+        <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/[0.01]">
           <div className="relative w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-4 w-4" />
             <input 
               type="text" 
               placeholder="Search inventory..."
-              className="w-full bg-[var(--bg-input)] border border-white/[0.08] rounded-xl pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-[#0A84FF]/50 transition-colors"
+              className="w-full bg-[var(--bg-input)] border border-white/20 rounded-xl pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-[#0A84FF]/50 transition-colors"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -198,25 +234,26 @@ export default function InventoryPage() {
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 bg-[var(--bg-card)] z-10 box-border">
               <tr>
-                <th className="px-6 py-4 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider border-b border-white/[0.05]">Product Name</th>
-                <th className="px-6 py-4 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider border-b border-white/[0.05]">Category</th>
-                <th className="px-6 py-4 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider border-b border-white/[0.05]">Price</th>
-                <th className="px-6 py-4 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider border-b border-white/[0.05]">Stock</th>
+                <th className="px-6 py-4 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider border-b border-white/10">Product Name</th>
+                <th className="px-6 py-4 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider border-b border-white/10">Category</th>
+                <th className="px-6 py-4 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider border-b border-white/10">Price</th>
+                <th className="px-6 py-4 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider border-b border-white/10">Stock</th>
+                <th className="px-6 py-4 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider border-b border-white/10">Sold</th>
                 <th className="px-6 py-4 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider border-b border-white/[0.05] text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-12 text-white/50">Loading inventory...</td>
+                  <td colSpan={6} className="text-center py-12 text-white/50">Loading inventory...</td>
                 </tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-12 text-white/50">No products found. Add your first product!</td>
+                  <td colSpan={6} className="text-center py-12 text-white/50">No products found. Add your first product!</td>
                 </tr>
               ) : (
                 filteredProducts.map(product => (
-                  <tr key={product.id} className="hover:bg-white/[0.02] border-b border-white/[0.02] transition-colors group">
+                  <tr key={product.id} className="hover:bg-white/[0.02] border-b border-white/[0.05] transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
@@ -238,8 +275,13 @@ export default function InventoryPage() {
                       <div className="text-sm font-mono text-white">₱{product.price.toFixed(2)}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className={`text-sm font-mono font-bold ${product.stock_count < 5 ? 'text-[#F59E0B]' : 'text-white'}`}>
-                        {product.stock_count}
+                      <div className={`text-sm font-mono font-bold ${product.stock_count === null ? 'text-white/60' : product.stock_count < 5 ? 'text-[#F59E0B]' : 'text-white'}`}>
+                        {product.stock_count === null ? "N/A" : product.stock_count}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-mono font-bold text-white">
+                        {product.total_sold || 0}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -260,8 +302,8 @@ export default function InventoryPage() {
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--bg-card)] border border-white/[0.1] shadow-2xl rounded-[24px] w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-5 border-b border-white/[0.05] flex items-center gap-3">
+          <div className="bg-[var(--bg-card)] border border-white/20 shadow-2xl rounded-[24px] w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
               <div className="p-2 rounded-xl bg-[#0A84FF]/10 text-[#0A84FF]">
                 <PackagePlus size={20} />
               </div>
@@ -310,13 +352,13 @@ export default function InventoryPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">Stock Count</label>
+                  <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">Stock Count (Leave empty for N/A)</label>
                   <input 
-                    type="number" 
+                    type="text" 
                     className="w-full bg-[var(--bg-input)] border border-white/[0.08] hover:border-white/20 focus:border-[#0A84FF] rounded-xl px-4 py-3 text-white font-mono text-sm outline-none transition-all"
                     value={formData.stock_count}
                     onChange={e => setFormData({...formData, stock_count: e.target.value})}
-                    placeholder="0"
+                    placeholder="e.g. 10 or empty"
                   />
                 </div>
               </div>
@@ -377,13 +419,27 @@ export default function InventoryPage() {
               </div>
             </div>
 
-            <div className="px-6 py-5 bg-white/[0.02] border-t border-white/[0.05] flex gap-3 justify-end">
-              <Button onClick={handleCloseModal} variant="ghost" className="opacity-80 hover:opacity-100">
-                Cancel
-              </Button>
-              <Button onClick={handleSave} className="bg-[#0A84FF] hover:bg-[#0A84FF]/90 text-white min-w-[100px]">
-                {editingProduct ? "Save Changes" : "Create Product"}
-              </Button>
+            <div className="px-6 py-5 bg-white/[0.02] border-t border-white/10 flex gap-3 justify-between items-center">
+              <div>
+                {editingProduct && (
+                  <Button 
+                    onClick={handleArchive} 
+                    variant="ghost" 
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  >
+                    <ImageIcon size={18} className="mr-2" />
+                    Archive Product
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <Button onClick={handleCloseModal} variant="ghost" className="opacity-80 hover:opacity-100">
+                  Cancel
+                </Button>
+                <Button onClick={handleSave} className="bg-[#0A84FF] hover:bg-[#0A84FF]/90 text-white min-w-[100px]">
+                  {editingProduct ? "Save Changes" : "Create Product"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

@@ -158,7 +158,8 @@ CREATE TABLE public.products (
     name VARCHAR NOT NULL,
     category VARCHAR,
     price DECIMAL(10, 2) NOT NULL,
-    stock_count INTEGER NOT NULL DEFAULT 0,
+    stock_count INTEGER DEFAULT 0,
+    total_sold INTEGER NOT NULL DEFAULT 0,
     image_url VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -182,7 +183,9 @@ CREATE OR REPLACE FUNCTION public.handle_sale_stock()
 RETURNS TRIGGER AS $$
 BEGIN
     UPDATE public.products
-    SET stock_count = stock_count - NEW.quantity
+    SET 
+        stock_count = CASE WHEN stock_count IS NOT NULL THEN stock_count - NEW.quantity ELSE NULL END,
+        total_sold = total_sold + NEW.quantity
     WHERE id = NEW.product_id;
     RETURN NEW;
 END;

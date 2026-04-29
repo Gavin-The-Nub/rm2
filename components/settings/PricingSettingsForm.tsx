@@ -5,6 +5,7 @@ import { supabase } from "@/utils/supabase/client"
 import { Card } from "@/components/ui/Card"
 import { Input } from "@/components/ui/Input"
 import { Button } from "@/components/ui/Button"
+import { toast } from "sonner"
 import { DEFAULT_PRICING, type PricingConfig } from "@/lib/pricing"
 
 type SettingsRow = {
@@ -61,15 +62,15 @@ export function PricingSettingsForm() {
     setSaving(false)
 
     if (error) {
-      alert(error.message || "Failed to save pricing settings.")
+      toast.error(error.message || "Failed to save pricing settings.")
       return
     }
 
-    alert("Pricing settings saved.")
+    toast.success("Pricing settings saved.")
   }
 
   return (
-    <Card className="max-w-2xl border border-white/5 p-6 space-y-6">
+    <Card className="max-w-2xl border border-white/10 p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white mb-2">Pricing Settings</h1>
         <p className="text-[var(--color-text-muted)] text-sm">

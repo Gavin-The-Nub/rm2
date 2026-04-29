@@ -6,6 +6,7 @@ import { supabase } from "@/utils/supabase/client"
 import { Card } from "@/components/ui/Card"
 import { Input } from "@/components/ui/Input"
 import { Button } from "@/components/ui/Button"
+import { toast } from "sonner"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { DEFAULT_PRICING, type MonthlyPlan, type PricingConfig } from "@/lib/pricing"
 
@@ -107,7 +108,7 @@ export function AddMemberForm() {
       router.push("/members")
       
     } catch (err: any) {
-      alert(err.message || "Failed to create member. Please try again.")
+      toast.error(err.message || "Failed to create member. Please try again.")
       setLoading(false)
     }
   }
@@ -126,8 +127,8 @@ export function AddMemberForm() {
   }
 
   return (
-    <Card className="max-w-3xl mx-auto w-full border border-white/5">
-      <div className="p-6 border-b border-white/5 flex items-center gap-4">
+    <Card className="max-w-3xl mx-auto w-full border border-white/10">
+      <div className="p-6 border-b border-white/10 flex items-center gap-4">
         <Button variant="secondary" className="px-3" onClick={() => router.back()}>
           <ArrowLeft className="w-4 h-4" />
         </Button>
@@ -140,7 +141,7 @@ export function AddMemberForm() {
       <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-8">
         
         {/* Membership Type Picker */}
-        <div className="space-y-3 p-4 bg-input/50 rounded-xl border border-white/5">
+        <div className="space-y-3 p-4 bg-input/50 rounded-xl border border-white/10">
           <label className="text-sm font-semibold text-primary uppercase tracking-wider block">Membership Duration</label>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div 
@@ -148,7 +149,7 @@ export function AddMemberForm() {
               className={`p-4 rounded-xl border cursor-pointer transition-all ${
                 type === "1_day" 
                 ? "border-accent-primary bg-accent-primary/10" 
-                : "border-white/10 hover:border-white/20 bg-card"
+                : "border-white/20 hover:border-white/30 bg-card"
               }`}
             >
               <div className="flex justify-between items-center mb-1">
@@ -163,7 +164,7 @@ export function AddMemberForm() {
               className={`p-4 rounded-xl border cursor-pointer transition-all ${
                 type === "weekly" 
                 ? "border-accent-primary bg-accent-primary/10" 
-                : "border-white/10 hover:border-white/20 bg-card"
+                : "border-white/20 hover:border-white/30 bg-card"
               }`}
             >
               <div className="flex justify-between items-center mb-1">
@@ -178,7 +179,7 @@ export function AddMemberForm() {
               className={`p-4 rounded-xl border cursor-pointer transition-all ${
                 type === "monthly" 
                 ? "border-accent-primary bg-accent-primary/10" 
-                : "border-white/10 hover:border-white/20 bg-card"
+                : "border-white/20 hover:border-white/30 bg-card"
               }`}
             >
               <div className="flex justify-between items-center mb-1">
@@ -191,7 +192,7 @@ export function AddMemberForm() {
         </div>
 
         {type === "monthly" && (
-          <div className="space-y-3 p-4 bg-input/50 rounded-xl border border-white/5">
+          <div className="space-y-3 p-4 bg-input/50 rounded-xl border border-white/10">
             <label className="text-sm font-semibold text-primary uppercase tracking-wider block">Monthly Type</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <button
@@ -200,7 +201,7 @@ export function AddMemberForm() {
                 className={`p-4 rounded-xl border text-left transition-all ${
                   monthlyPlan === "regular"
                     ? "border-accent-primary bg-accent-primary/10"
-                    : "border-white/10 hover:border-white/20 bg-card"
+                    : "border-white/20 hover:border-white/30 bg-card"
                 }`}
               >
                 <p className="font-semibold text-primary">Regular</p>
@@ -212,7 +213,7 @@ export function AddMemberForm() {
                 className={`p-4 rounded-xl border text-left transition-all ${
                   monthlyPlan === "student"
                     ? "border-accent-primary bg-accent-primary/10"
-                    : "border-white/10 hover:border-white/20 bg-card"
+                    : "border-white/20 hover:border-white/30 bg-card"
                 }`}
               >
                 <p className="font-semibold text-primary">Student</p>
@@ -261,7 +262,7 @@ export function AddMemberForm() {
             </div>
         </div>
 
-        <div className="pt-4 border-t border-white/5 flex justify-end gap-3">
+        <div className="pt-4 border-t border-white/10 flex justify-end gap-3">
           <Button variant="secondary" type="button" onClick={() => router.back()} disabled={loading}>
             Cancel
           </Button>

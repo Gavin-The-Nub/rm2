@@ -5,6 +5,7 @@ import { supabase } from "@/utils/supabase/client"
 import { Card } from "@/components/ui/Card"
 import { Input } from "@/components/ui/Input"
 import { Button } from "@/components/ui/Button"
+import { toast } from "sonner"
 import { X, Loader2 } from "lucide-react"
 import { DEFAULT_PRICING, type MonthlyPlan, type PricingConfig } from "@/lib/pricing"
 import { addDaysISOInPH, phTodayISO } from "@/lib/phTime"
@@ -153,10 +154,11 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
 
       onUpdate() // Refresh data
       onClose()
+      toast.success("Membership renewed successfully!")
       
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
-      alert("Failed to renew membership: " + msg)
+      toast.error("Failed to renew membership: " + msg)
     } finally {
       setLoading(false)
     }
@@ -164,8 +166,8 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 min-h-screen animate-in fade-in duration-200">
-      <Card className="w-full max-w-md bg-bg-base border-white/10 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
-        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-card/30">
+      <Card className="w-full max-w-md bg-bg-base border-white/20 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-card/30">
           <div>
             <h2 className="text-xl font-bold text-primary font-primary">Renew Membership</h2>
             <p className="text-xs text-secondary mt-1 tracking-wide uppercase">For {member.name}</p>
@@ -217,7 +219,7 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
                   className={`p-3 rounded-lg border text-left transition-all ${
                     monthlyPlan === "regular"
                       ? "border-accent-primary bg-accent-primary/10 text-accent-primary"
-                      : "border-white/10 hover:border-white/20 text-primary"
+                      : "border-white/20 hover:border-white/30 text-primary"
                   }`}
                 >
                   <p className="font-semibold text-sm">Regular</p>
@@ -229,7 +231,7 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
                   className={`p-3 rounded-lg border text-left transition-all ${
                     monthlyPlan === "student"
                       ? "border-accent-primary bg-accent-primary/10 text-accent-primary"
-                      : "border-white/10 hover:border-white/20 text-primary"
+                      : "border-white/20 hover:border-white/30 text-primary"
                   }`}
                 >
                   <p className="font-semibold text-sm">Student</p>
@@ -251,7 +253,7 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
               />
           </div>
 
-          <div className="bg-input/50 p-4 rounded-xl border border-white/5 flex flex-col gap-2">
+          <div className="bg-input/50 p-4 rounded-xl border border-white/10 flex flex-col gap-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted">Current End Date:</span>
               <span className="text-secondary font-medium">{member.end_date}</span>

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import { supabase } from "@/utils/supabase/client"
 import { Card } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
+import { toast } from "sonner"
 import { Badge } from "@/components/ui/Badge"
 import { format } from "date-fns"
 import { ArrowLeft, User, Calendar, Clock, Loader2, AlertCircle, Mail, ChevronLeft, ChevronRight } from "lucide-react"
@@ -56,11 +57,13 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
       .eq("id", member.id)
 
     if (error) {
-      alert("Failed to delete account.")
+      toast.error("Failed to delete account.")
       console.error(error)
       setDeleteLoading(false)
       return
     }
+
+    toast.success("Account deleted successfully.")
 
     onUpdate()
     router.push("/members")
@@ -160,7 +163,7 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <div className="xl:col-span-4">
-          <Card className="h-full flex flex-col items-center text-center p-8 border border-white/5 relative overflow-hidden">
+          <Card className="h-full flex flex-col items-center text-center p-8 border border-white/10 relative overflow-hidden">
             {/* Status indicator ring around photo */}
             <div
               className={`relative mb-6 rounded-full p-1 ring-2 ${
@@ -194,7 +197,7 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
               </div>
             </Badge>
 
-            <div className="w-full border-t border-white/5 pt-6 mt-2">
+            <div className="w-full border-t border-white/10 pt-6 mt-2">
               <div className="flex flex-col items-center">
                 <span className="text-xs text-muted uppercase tracking-wider mb-1">Total Paid</span>
                 <span className="text-xl font-semibold text-primary">₱{totalPaid.toFixed(2)}</span>
@@ -204,13 +207,13 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
         </div>
 
         <div className="xl:col-span-8">
-          <Card className="p-0 border border-white/5 overflow-hidden">
-            <div className="p-6 border-b border-white/5">
+          <Card className="p-0 border border-white/10 overflow-hidden">
+            <div className="p-6 border-b border-white/10">
               <h3 className="text-sm font-semibold text-secondary uppercase tracking-wider">Membership Details</h3>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="flex items-start gap-3">
-                <div className="p-2.5 rounded-xl bg-input border border-white/5 shrink-0">
+                <div className="p-2.5 rounded-xl bg-input border border-white/10 shrink-0">
                   <Calendar className="w-5 h-5 text-accent-primary" />
                 </div>
                 <div>
@@ -220,7 +223,7 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
               </div>
               
               <div className="flex items-start gap-3">
-                <div className="p-2.5 rounded-xl bg-input border border-white/5 shrink-0">
+                <div className="p-2.5 rounded-xl bg-input border border-white/10 shrink-0">
                   <Clock className="w-5 h-5 text-accent-secondary" />
                 </div>
                 <div>
@@ -239,28 +242,28 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
         </div>
         
         <div className="xl:col-span-7">
-          <Card className="p-0 border border-white/5 overflow-hidden">
-            <div className="p-6 border-b border-white/5">
+          <Card className="p-0 border border-white/10 overflow-hidden">
+            <div className="p-6 border-b border-white/10">
               <h3 className="text-sm font-semibold text-secondary uppercase tracking-wider">Attendance</h3>
             </div>
 
             <div className="p-6 space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="rounded-xl border border-white/5 bg-card/30 p-4">
+                <div className="rounded-xl border border-white/10 bg-card/30 p-4">
                   <p className="text-[11px] text-muted uppercase tracking-wider mb-1">This month</p>
                   <p className="text-2xl font-semibold text-primary">{monthVisits}</p>
                 </div>
-                <div className="rounded-xl border border-white/5 bg-card/30 p-4">
+                <div className="rounded-xl border border-white/10 bg-card/30 p-4">
                   <p className="text-[11px] text-muted uppercase tracking-wider mb-1">This week</p>
                   <p className="text-2xl font-semibold text-primary">{weekVisits}</p>
                 </div>
-                <div className="rounded-xl border border-white/5 bg-card/30 p-4">
+                <div className="rounded-xl border border-white/10 bg-card/30 p-4">
                   <p className="text-[11px] text-muted uppercase tracking-wider mb-1">All time</p>
                   <p className="text-2xl font-semibold text-primary">{allTimeVisits}</p>
                 </div>
               </div>
 
-              <div className="border-t border-white/5 pt-4 w-full">
+              <div className="border-t border-white/10 pt-4 w-full">
                 <div className="flex items-center justify-between mb-4">
                   <Button variant="secondary" className="px-3 py-2" onClick={goToPrevMonth}>
                     <ChevronLeft className="w-4 h-4" />
@@ -296,7 +299,7 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
                         }`}
                       >
                         {format(cell.date, "d")}
-                        <div className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-20 w-max max-w-[220px] -translate-x-1/2 rounded-md border border-white/10 bg-black/90 px-2 py-1.5 text-[11px] text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
+                        <div className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-20 w-max max-w-[220px] -translate-x-1/2 rounded-md border border-white/20 bg-black/90 px-2 py-1.5 text-[11px] text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
                           <p className="whitespace-nowrap">{formattedDate}</p>
                           {hasVisit ? (
                             <p className="text-emerald-200">Time in: {times.join(", ")}</p>
@@ -314,8 +317,8 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
         </div>
         
         <div className="xl:col-span-5">
-          <Card className="p-0 border border-white/5 overflow-hidden flex-1 min-h-[300px]">
-            <div className="p-6 border-b border-white/5 flex justify-between items-center bg-card/50">
+          <Card className="p-0 border border-white/10 overflow-hidden flex-1 min-h-[300px]">
+            <div className="p-6 border-b border-white/10 flex justify-between items-center bg-card/50">
               <h3 className="text-sm font-semibold text-secondary uppercase tracking-wider">
                 Email notifications
               </h3>
@@ -333,14 +336,14 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
                   No reminder emails logged yet. They will appear here after expiry reminders are sent.
                 </div>
               ) : (
-                <div className="divide-y divide-white/5">
+                <div className="divide-y divide-white/10">
                   {member.member_notification_logs.slice(0, 20).map((row: any) => (
                     <div
                       key={row.id}
                       className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 p-4 hover:bg-card-hover transition-colors"
                     >
                       <div className="flex items-start gap-3 min-w-0">
-                        <div className="p-2 rounded-lg bg-input border border-white/5 shrink-0 mt-0.5">
+                        <div className="p-2 rounded-lg bg-input border border-white/10 shrink-0 mt-0.5">
                           <Mail className="w-4 h-4 text-accent-primary" />
                         </div>
                         <div className="min-w-0">

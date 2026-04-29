@@ -5,13 +5,14 @@ import Link from "next/link"
 import { Plus, Minus, Search, ShoppingCart } from "lucide-react"
 import { supabase } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/Button"
+import { toast } from "sonner"
 
 type Product = {
   id: string
   name: string
   category: string
   price: number
-  stock_count: number
+  stock_count: number | null
   image_url: string | null
 }
 
@@ -33,6 +34,7 @@ export default function POSPage() {
     const { data, error } = await supabase
       .from("products")
       .select("*")
+      .eq("is_archived", false)
       .order("name")
     
     if (data) setProducts(data)
@@ -44,12 +46,12 @@ export default function POSPage() {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id)
       if (existing) {
-        if (existing.cart_quantity >= product.stock_count) return prev 
+        if (product.stock_count !== null && existing.cart_quantity >= product.stock_count) return prev 
         return prev.map(item => 
           item.id === product.id ? { ...item, cart_quantity: item.cart_quantity + 1 } : item
         )
       }
-      if (product.stock_count > 0) {
+      if (product.stock_count === null || product.stock_count > 0) {
         return [...prev, { ...product, cart_quantity: 1 }]
       }
       return prev
@@ -83,7 +85,7 @@ export default function POSPage() {
     const { error } = await supabase.from("sales").insert(salesData)
     
     if (error) {
-      alert("Checkout failed: " + error.message)
+      toast.error("Checkout failed: " + error.message)
       setCheckingOut(false)
       return
     }
@@ -91,13 +93,13 @@ export default function POSPage() {
     setCart([])
     await fetchProducts()
     setCheckingOut(false)
-    alert("Checkout successful!")
+    toast.success("Checkout successful!")
   }
 
   return (
     <div className="flex h-[calc(100vh-2rem)] gap-6 pt-4 px-2">
       {/* Product Grid - Left Pane */}
-      <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-card)] rounded-[20px] border border-white/[0.05] p-6 shadow-lg relative overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-card)] rounded-[20px] border border-white/[0.1] p-6 shadow-lg relative overflow-hidden">
         <div className="flex flex-col gap-4 sm:flex-row items-start sm:items-center justify-between mb-8 shrink-0">
           <div>
             <h1 className="text-[28px] font-bold text-white tracking-tight">Point of Sale</h1>
@@ -109,14 +111,14 @@ export default function POSPage() {
               <input 
                 type="text" 
                 placeholder="Search products..."
-                className="w-full bg-[var(--bg-input)] border border-white/[0.08] hover:border-white/20 rounded-[14px] pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-[#0A84FF]/50 transition-colors shadow-inner"
+                className="w-full bg-[var(--bg-input)] border border-white/20 hover:border-white/30 rounded-[14px] pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-[#0A84FF]/50 transition-colors shadow-inner"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
             <Link 
               href="/pos/inventory"
-              className="hidden sm:flex items-center justify-center h-11 px-4 rounded-xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] text-[var(--text-secondary)] hover:text-white transition-colors"
+              className="hidden sm:flex items-center justify-center h-11 px-4 rounded-xl border border-white/20 bg-white/[0.02] hover:bg-white/[0.04] text-[var(--text-secondary)] hover:text-white transition-colors"
             >
               Inventory
             </Link>
@@ -133,8 +135,8 @@ export default function POSPage() {
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-12">
               {filteredProducts.map(product => {
-                const isLowStock = product.stock_count > 0 && product.stock_count < 5
-                const isOutOfStock = product.stock_count === 0
+                const isLowStock = product.stock_count !== null && product.stock_count > 0 && product.stock_count < 5
+                const isOutOfStock = product.stock_count !== null && product.stock_count === 0
                 return (
                   <button 
                     key={product.id}
@@ -143,7 +145,7 @@ export default function POSPage() {
                     className={`relative text-left p-5 rounded-[16px] border transition-all duration-200 
                       ${isOutOfStock 
                         ? 'bg-white/[0.02] border-white/[0.02] opacity-40 cursor-not-allowed grayscale' 
-                        : 'bg-[var(--bg-input)] border-white/[0.04] hover:border-[#0A84FF]/40 hover:bg-white/[0.06] hover:-translate-y-1 active:scale-95 shadow-sm'
+                        : 'bg-[var(--bg-input)] border-white/[0.1] hover:border-[#0A84FF]/40 hover:bg-white/[0.06] hover:-translate-y-1 active:scale-95 shadow-sm'
                       }
                       ${isLowStock ? 'ring-1 ring-[#F59E0B]/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]' : ''}`}
                   >
@@ -157,7 +159,7 @@ export default function POSPage() {
                         Sold Out
                       </span>
                     )}
-                    <div className="h-32 w-full rounded-[12px] bg-white/5 mb-4 flex items-center justify-center border border-white/[0.05] overflow-hidden">
+                    <div className="h-32 w-full rounded-[12px] bg-white/5 mb-4 flex items-center justify-center border border-white/[0.1] overflow-hidden">
                       {product.image_url ? (
                         <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
                       ) : (
@@ -169,9 +171,11 @@ export default function POSPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[#0A84FF] font-bold">₱{product.price.toFixed(2)}</span>
-                      <span className="text-[11px] text-[var(--text-muted)] font-medium bg-black/20 px-2 py-1 rounded-md border border-white/[0.02]">
-                        {product.stock_count} <span className="opacity-50">rem</span>
-                      </span>
+                      {product.stock_count !== null && (
+                        <span className="text-[11px] text-[var(--text-muted)] font-medium bg-black/20 px-2 py-1 rounded-md border border-white/[0.02]">
+                          {product.stock_count} <span className="opacity-50">rem</span>
+                        </span>
+                      )}
                     </div>
                   </button>
                 )
@@ -187,8 +191,8 @@ export default function POSPage() {
       </div>
 
       {/* Cart - Right Pane */}
-      <div className="w-[380px] shrink-0 bg-[var(--bg-card)] rounded-[20px] border border-white/[0.05] shadow-lg flex flex-col relative overflow-hidden">
-        <div className="p-6 border-b border-white/[0.05] shrink-0 bg-white/[0.01]">
+      <div className="w-[380px] shrink-0 bg-[var(--bg-card)] rounded-[20px] border border-white/[0.1] shadow-lg flex flex-col relative overflow-hidden">
+        <div className="p-6 border-b border-white/[0.1] shrink-0 bg-white/[0.01]">
           <div className="flex justify-between items-center">
             <h2 className="text-[18px] font-bold text-white flex items-center gap-2.5">
               <div className="p-1.5 rounded-lg bg-[#0A84FF]/10 text-[#0A84FF]">
@@ -213,7 +217,7 @@ export default function POSPage() {
           ) : (
             <div className="space-y-2">
               {cart.map(item => (
-                <div key={item.id} className="flex flex-col bg-black/20 hover:bg-black/30 rounded-[14px] p-4 border border-white/[0.03] transition-colors group">
+                <div key={item.id} className="flex flex-col bg-black/20 hover:bg-black/30 rounded-[14px] p-4 border border-white/10 transition-colors group">
                   <div className="flex justify-between items-start mb-3">
                     <span className="text-white font-medium text-[14px] leading-tight pr-4">{item.name}</span>
                     <span className="text-white font-bold text-[14px] shrink-0 font-mono tracking-tight">
@@ -234,7 +238,7 @@ export default function POSPage() {
                       </span>
                       <button 
                         onClick={() => addToCart(item)}
-                        disabled={item.cart_quantity >= item.stock_count}
+                        disabled={item.stock_count !== null && item.cart_quantity >= item.stock_count}
                         className="w-8 h-8 flex items-center justify-center rounded-[8px] hover:bg-white/10 text-white/50 hover:text-white transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
                       >
                         <Plus size={14} />
@@ -247,7 +251,7 @@ export default function POSPage() {
           )}
         </div>
 
-        <div className="p-6 bg-[#000000]/30 border-t border-white/[0.05] shrink-0 backdrop-blur-xl">
+        <div className="p-6 bg-[#000000]/30 border-t border-white/[0.1] shrink-0 backdrop-blur-xl">
           <div className="space-y-3 mb-6">
             <div className="flex justify-between text-sm">
               <span className="text-[var(--text-secondary)] font-medium">Subtotal</span>

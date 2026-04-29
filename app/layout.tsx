@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import NextTopLoader from 'nextjs-toploader';
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const inter = Inter({
@@ -33,6 +34,7 @@ export default function RootLayout({
           shadow="0 0 10px #0A84FF,0 0 5px #0A84FF"
         />
         {children}
+        <Toaster position="top-right" richColors theme="dark" />
       </body>
     </html>
   );
