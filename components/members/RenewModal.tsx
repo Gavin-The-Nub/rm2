@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/Input"
 import { Button } from "@/components/ui/Button"
 import { toast } from "sonner"
 import { X, Loader2 } from "lucide-react"
-import { DEFAULT_PRICING, type MonthlyPlan, type PricingConfig } from "@/lib/pricing"
+import { DEFAULT_PRICING, COMBAT_PRICING, type MonthlyPlan, type PricingConfig } from "@/lib/pricing"
 import { addDaysISOInPH, phTodayISO } from "@/lib/phTime"
 
 type RenewModalProps = {
@@ -19,6 +19,7 @@ type RenewModalProps = {
     end_date: string
     status?: string | null
     membership_type?: "1_day" | "weekly" | "monthly" | null
+    membership_category?: "gym" | "combat" | null
     payment_amount?: number | null
   } | null
   onUpdate: () => void
@@ -26,6 +27,7 @@ type RenewModalProps = {
 
 export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProps) {
   const [loading, setLoading] = useState(false)
+  const [category, setCategory] = useState<"gym" | "combat">("gym")
   const [type, setType] = useState<"1_day" | "weekly" | "monthly">("weekly")
   const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan>("regular")
   const [payment, setPayment] = useState("")
@@ -57,33 +59,38 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
   }, [])
 
   const getDefaultPayment = useCallback((
+    membershipCategory: "gym" | "combat",
     membershipType: "1_day" | "weekly" | "monthly",
     plan: MonthlyPlan
   ) => {
-    if (membershipType === "1_day") return String(pricing.session)
-    if (membershipType === "weekly") return String(pricing.weekly)
-    return String(plan === "student" ? pricing.monthlyStudent : pricing.monthlyRegular)
+    const currentPricing = membershipCategory === "combat" ? COMBAT_PRICING : pricing
+    if (membershipType === "1_day") return String(currentPricing.session)
+    if (membershipType === "weekly") return String(currentPricing.weekly)
+    return String(plan === "student" ? currentPricing.monthlyStudent : currentPricing.monthlyRegular)
   }, [pricing])
 
-  const inferMonthlyPlan = useCallback((amount: number): MonthlyPlan => {
-    const studentDiff = Math.abs(amount - pricing.monthlyStudent)
-    const regularDiff = Math.abs(amount - pricing.monthlyRegular)
+  const inferMonthlyPlan = useCallback((membershipCategory: "gym" | "combat", amount: number): MonthlyPlan => {
+    const currentPricing = membershipCategory === "combat" ? COMBAT_PRICING : pricing
+    const studentDiff = Math.abs(amount - currentPricing.monthlyStudent)
+    const regularDiff = Math.abs(amount - currentPricing.monthlyRegular)
     return studentDiff <= regularDiff ? "student" : "regular"
   }, [pricing])
 
   useEffect(() => {
     if (!isOpen || !member) return
 
+    const nextCategory = (member.membership_category || "gym") as "gym" | "combat"
     const nextType = (member.membership_type || "weekly") as "1_day" | "weekly" | "monthly"
     const nextPlan =
-      nextType === "monthly" ? inferMonthlyPlan(Number(member.payment_amount) || pricing.monthlyRegular) : "regular"
+      nextType === "monthly" ? inferMonthlyPlan(nextCategory, Number(member.payment_amount) || pricing.monthlyRegular) : "regular"
 
+    setCategory(nextCategory)
     setType(nextType)
     setMonthlyPlan(nextPlan)
     setPayment(
       member.payment_amount !== null && member.payment_amount !== undefined
         ? String(member.payment_amount)
-        : getDefaultPayment(nextType, nextPlan)
+        : getDefaultPayment(nextCategory, nextType, nextPlan)
     )
   }, [getDefaultPayment, inferMonthlyPlan, isOpen, member, pricing.monthlyRegular])
 
@@ -105,15 +112,16 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
 
   if (!isOpen || !member) return null
 
-  const handleTypeChange = (newType: "1_day" | "weekly" | "monthly") => {
+  const handleTypeChange = (newCategory: "gym" | "combat", newType: "1_day" | "weekly" | "monthly") => {
+    setCategory(newCategory)
     setType(newType)
-    setPayment(getDefaultPayment(newType, monthlyPlan))
+    setPayment(getDefaultPayment(newCategory, newType, monthlyPlan))
   }
 
   const handleMonthlyPlanChange = (plan: MonthlyPlan) => {
     setMonthlyPlan(plan)
     if (type === "monthly") {
-      setPayment(getDefaultPayment("monthly", plan))
+      setPayment(getDefaultPayment(category, "monthly", plan))
     }
   }
 
@@ -130,6 +138,7 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
         .from('members')
         .update({ 
           end_date: nextEndISO,
+          membership_category: category,
           membership_type: type, // Support upgrading/downgrading
           payment_amount: Number(payment), // Keep current paid value aligned with renewal type/value
           status: 'active'       // Ensure they are active if they were expired
@@ -141,6 +150,7 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
         .from('renewals')
         .insert({
           member_id: member.id,
+          membership_category: category,
           membership_type: type,
           previous_end_date: member.end_date,
           new_end_date: nextEndISO,
@@ -180,28 +190,50 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
         <form onSubmit={handleRenew} className="p-6 flex flex-col gap-6">
           
           <div className="space-y-3">
-            <label className="text-xs font-semibold text-secondary uppercase tracking-wider block">Select New Duration</label>
+            <label className="text-xs font-semibold text-secondary uppercase tracking-wider block">Gym Duration</label>
             <div className="grid grid-cols-3 gap-2">
               <div 
-                onClick={() => handleTypeChange("1_day")}
+                onClick={() => handleTypeChange("gym", "1_day")}
                 className={`p-3 rounded-lg border text-center cursor-pointer transition-all ${
-                  type === "1_day" ? "border-accent-primary bg-accent-primary/10 text-accent-primary" : "border-white/10 hover:border-white/20 text-primary"
+                  category === "gym" && type === "1_day" ? "border-accent-primary bg-accent-primary/10 text-accent-primary" : "border-white/10 hover:border-white/20 text-primary"
                 }`}
               >
                 <div className="font-semibold text-sm">1 Day</div>
               </div>
               <div 
-                onClick={() => handleTypeChange("weekly")}
+                onClick={() => handleTypeChange("gym", "weekly")}
                 className={`p-3 rounded-lg border text-center cursor-pointer transition-all ${
-                  type === "weekly" ? "border-accent-primary bg-accent-primary/10 text-accent-primary" : "border-white/10 hover:border-white/20 text-primary"
+                  category === "gym" && type === "weekly" ? "border-accent-primary bg-accent-primary/10 text-accent-primary" : "border-white/10 hover:border-white/20 text-primary"
                 }`}
               >
                 <div className="font-semibold text-sm">Weekly</div>
               </div>
               <div 
-                onClick={() => handleTypeChange("monthly")}
+                onClick={() => handleTypeChange("gym", "monthly")}
                 className={`p-3 rounded-lg border text-center cursor-pointer transition-all ${
-                  type === "monthly" ? "border-accent-primary bg-accent-primary/10 text-accent-primary" : "border-white/10 hover:border-white/20 text-primary"
+                  category === "gym" && type === "monthly" ? "border-accent-primary bg-accent-primary/10 text-accent-primary" : "border-white/10 hover:border-white/20 text-primary"
+                }`}
+              >
+                <div className="font-semibold text-sm">Monthly</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <label className="text-xs font-semibold text-secondary uppercase tracking-wider block">Combat Duration</label>
+            <div className="grid grid-cols-2 gap-2">
+              <div 
+                onClick={() => handleTypeChange("combat", "1_day")}
+                className={`p-3 rounded-lg border text-center cursor-pointer transition-all ${
+                  category === "combat" && type === "1_day" ? "border-accent-primary bg-accent-primary/10 text-accent-primary" : "border-white/10 hover:border-white/20 text-primary"
+                }`}
+              >
+                <div className="font-semibold text-sm">Session</div>
+              </div>
+              <div 
+                onClick={() => handleTypeChange("combat", "monthly")}
+                className={`p-3 rounded-lg border text-center cursor-pointer transition-all ${
+                  category === "combat" && type === "monthly" ? "border-accent-primary bg-accent-primary/10 text-accent-primary" : "border-white/10 hover:border-white/20 text-primary"
                 }`}
               >
                 <div className="font-semibold text-sm">Monthly</div>
@@ -223,7 +255,7 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
                   }`}
                 >
                   <p className="font-semibold text-sm">Regular</p>
-                  <p className="text-xs">₱{pricing.monthlyRegular.toFixed(2)}</p>
+                  <p className="text-xs">₱{(category === "combat" ? COMBAT_PRICING : pricing).monthlyRegular.toFixed(2)}</p>
                 </button>
                 <button
                   type="button"
@@ -235,7 +267,7 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
                   }`}
                 >
                   <p className="font-semibold text-sm">Student</p>
-                  <p className="text-xs">₱{pricing.monthlyStudent.toFixed(2)}</p>
+                  <p className="text-xs">₱{(category === "combat" ? COMBAT_PRICING : pricing).monthlyStudent.toFixed(2)}</p>
                 </button>
               </div>
             </div>

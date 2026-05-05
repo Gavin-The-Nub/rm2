@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/Badge"
 import { format } from "date-fns"
-import { ArrowLeft, User, Calendar, Clock, Loader2, AlertCircle, Mail, ChevronLeft, ChevronRight } from "lucide-react"
+import { ArrowLeft, User, Calendar, Clock, Loader2, AlertCircle, Mail, ChevronLeft, ChevronRight, Phone } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { RenewModal } from "./RenewModal"
@@ -184,7 +184,13 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
             </div>
 
             <h2 className="text-2xl font-bold text-primary mb-1">{member.name}</h2>
-            {member.email && <p className="text-secondary text-sm mb-4">{member.email}</p>}
+            {member.email && (
+              <p className={cn("text-secondary text-sm", member.phone ? "mb-1" : "mb-4")}>
+                {member.email}
+              </p>
+            )}
+            {member.phone && <p className="text-secondary text-sm mb-4">{member.phone}</p>}
+            {!member.email && !member.phone && <div className="mb-4" />}
             
             <Badge variant={statusBadgeVariant} className="mb-6 px-3 py-1">
               <div className="flex items-center gap-1">
@@ -218,7 +224,9 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
                 </div>
                 <div>
                   <p className="text-xs text-muted uppercase tracking-wider mb-1">Membership Type</p>
-                  <p className="text-primary font-medium capitalize">{member.membership_type.replace('_', ' ')}</p>
+                  <p className="text-primary font-medium capitalize">
+                    {member.membership_category || "Gym"} — {member.membership_type.replace('_', ' ')}
+                  </p>
                 </div>
               </div>
               

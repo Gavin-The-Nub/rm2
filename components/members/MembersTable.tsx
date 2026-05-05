@@ -22,6 +22,8 @@ type MemberRow = {
   id: string
   name: string
   email: string | null
+  phone: string | null
+  membership_category: "gym" | "combat"
   photo_url: string | null
   membership_type: "1_day" | "weekly" | "monthly"
   status: "active" | "suspended" | "cancelled"
@@ -57,7 +59,7 @@ export function MembersTable() {
       .from("members")
       .select(
         `
-          id, name, email, photo_url, membership_type, status, start_date, end_date, created_at, payment_amount,
+          id, name, email, phone, membership_category, photo_url, membership_type, status, start_date, end_date, created_at, payment_amount,
           renewals ( payment_amount, created_at )
         `
       )
@@ -89,6 +91,8 @@ export function MembersTable() {
         id: m.id,
         name: m.name,
         email: m.email,
+        phone: m.phone,
+        membership_category: m.membership_category || "gym",
         photo_url: m.photo_url,
         membership_type: m.membership_type,
         status: m.status,
@@ -112,7 +116,8 @@ export function MembersTable() {
   const searchFiltered = members.filter(
     (m) =>
       m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (m.email && m.email.toLowerCase().includes(searchTerm.toLowerCase()))
+      (m.email && m.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (m.phone && m.phone.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
   const tabCounts = {
@@ -328,6 +333,7 @@ export function MembersTable() {
                       <div>
                         <div className="font-medium text-primary group-hover:text-accent-primary transition-colors">{member.name}</div>
                         {member.email && <div className="text-xs text-muted">{member.email}</div>}
+                        {member.phone && <div className="text-xs text-muted">{member.phone}</div>}
                       </div>
                     </Link>
                   </td>
@@ -341,7 +347,12 @@ export function MembersTable() {
                       </div>
                     </Badge>
                   </td>
-                  <td className="px-6 py-4 text-secondary">{formatMembershipType(member.membership_type)}</td>
+                  <td className="px-6 py-4 text-secondary">
+                    <div className="flex flex-col">
+                      <span className="capitalize">{member.membership_category}</span>
+                      <span className="text-[10px] text-muted">{formatMembershipType(member.membership_type)}</span>
+                    </div>
+                  </td>
                   <td className={cn(
                     "px-6 py-4 text-secondary",
                     isExpired && "text-red-400 font-medium",
