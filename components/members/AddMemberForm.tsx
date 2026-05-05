@@ -8,14 +8,14 @@ import { Input } from "@/components/ui/Input"
 import { Button } from "@/components/ui/Button"
 import { toast } from "sonner"
 import { ArrowLeft, Loader2 } from "lucide-react"
-import { DEFAULT_PRICING, COMBAT_PRICING, type MonthlyPlan, type PricingConfig } from "@/lib/pricing"
+import { DEFAULT_PRICING, BOXING_PRICING, type MonthlyPlan, type PricingConfig } from "@/lib/pricing"
 
 export function AddMemberForm() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
   // Form state
-  const [category, setCategory] = useState<"gym" | "combat">("gym")
+  const [category, setCategory] = useState<"gym" | "boxing_muaythai">("gym")
   const [type, setType] = useState<"1_day" | "weekly" | "monthly">("weekly")
   const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan>("regular")
   const [name, setName] = useState("")
@@ -23,42 +23,56 @@ export function AddMemberForm() {
   const [phone, setPhone] = useState("")
   const [payment, setPayment] = useState("")
   const [pricing, setPricing] = useState<PricingConfig>(DEFAULT_PRICING)
+  const [boxingPricing, setBoxingPricing] = useState<PricingConfig>(BOXING_PRICING)
 
   useEffect(() => {
     const loadPricing = async () => {
       const { data, error } = await supabase
         .from("app_settings")
         .select("key,value")
-        .in("key", ["session_rate", "weekly_rate", "monthly_rate", "student_rate"])
+        .in("key", [
+          "session_rate", "weekly_rate", "monthly_rate", "student_rate",
+          "boxing_session_rate", "boxing_monthly_rate", "boxing_student_rate"
+        ])
 
       if (error || !data) {
         setPayment(String(DEFAULT_PRICING.weekly))
         return
       }
 
-      const nextPricing: PricingConfig = { ...DEFAULT_PRICING }
-      for (const row of data) {
-        const value = Number(row.value)
-        if (Number.isNaN(value)) continue
-        if (row.key === "session_rate") nextPricing.session = value
-        if (row.key === "weekly_rate") nextPricing.weekly = value
-        if (row.key === "monthly_rate") nextPricing.monthlyRegular = value
-        if (row.key === "student_rate") nextPricing.monthlyStudent = value
+      if (!error && data) {
+        const nextGym = { ...DEFAULT_PRICING }
+        const nextBoxing = { ...BOXING_PRICING }
+        for (const row of data) {
+          const parsed = Number(row.value)
+          if (Number.isNaN(parsed)) continue
+          
+          // Gym
+          if (row.key === "session_rate") nextGym.session = parsed
+          if (row.key === "weekly_rate") nextGym.weekly = parsed
+          if (row.key === "monthly_rate") nextGym.monthlyRegular = parsed
+          if (row.key === "student_rate") nextGym.monthlyStudent = parsed
+          
+          // Boxing
+          if (row.key === "boxing_session_rate") nextBoxing.session = parsed
+          if (row.key === "boxing_monthly_rate") nextBoxing.monthlyRegular = parsed
+          if (row.key === "boxing_student_rate") nextBoxing.monthlyStudent = parsed
+        }
+        setPricing(nextGym)
+        setBoxingPricing(nextBoxing)
+        setPayment(String(nextGym.weekly))
       }
-
-      setPricing(nextPricing)
-      setPayment(String(nextPricing.weekly))
     }
 
     void loadPricing()
   }, [])
 
   const getDefaultPayment = (
-    membershipCategory: "gym" | "combat",
+    membershipCategory: "gym" | "boxing_muaythai",
     membershipType: "1_day" | "weekly" | "monthly",
     plan: MonthlyPlan
   ) => {
-    const currentPricing = membershipCategory === "combat" ? COMBAT_PRICING : pricing
+    const currentPricing = membershipCategory === "boxing_muaythai" ? boxingPricing : pricing
     if (membershipType === "1_day") return String(currentPricing.session)
     if (membershipType === "weekly") return String(currentPricing.weekly)
     return String(plan === "student" ? currentPricing.monthlyStudent : currentPricing.monthlyRegular)
@@ -120,7 +134,7 @@ export function AddMemberForm() {
   }
 
   // Preset payment values depending on membership type (for convenience)
-  const handleTypeChange = (newCategory: "gym" | "combat", newType: "1_day" | "weekly" | "monthly") => {
+  const handleTypeChange = (newCategory: "gym" | "boxing_muaythai", newType: "1_day" | "weekly" | "monthly") => {
     setCategory(newCategory)
     setType(newType)
     setPayment(getDefaultPayment(newCategory, newType, monthlyPlan))
@@ -198,38 +212,38 @@ export function AddMemberForm() {
           </div>
         </div>
 
-        {/* Combat Membership Type Picker */}
+        {/* Boxing / Muay Thai Membership Type Picker */}
         <div className="space-y-3 p-4 bg-input/50 rounded-xl border border-white/10">
           <label className="text-sm font-semibold text-primary uppercase tracking-wider block">Boxing / Muay Thai Membership Duration</label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div 
-              onClick={() => handleTypeChange("combat", "1_day")}
+              onClick={() => handleTypeChange("boxing_muaythai", "1_day")}
               className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                category === "combat" && type === "1_day" 
+                category === "boxing_muaythai" && type === "1_day" 
                 ? "border-accent-primary bg-accent-primary/10" 
                 : "border-white/20 hover:border-white/30 bg-card"
               }`}
             >
               <div className="flex justify-between items-center mb-1">
-                <span className={`font-semibold ${category === "combat" && type === "1_day" ? "text-accent-primary" : "text-primary"}`}>Session Rate</span>
-                {category === "combat" && type === "1_day" && <div className="w-2 h-2 rounded-full bg-accent-primary" />}
+                <span className={`font-semibold ${category === "boxing_muaythai" && type === "1_day" ? "text-accent-primary" : "text-primary"}`}>Session Rate</span>
+                {category === "boxing_muaythai" && type === "1_day" && <div className="w-2 h-2 rounded-full bg-accent-primary" />}
               </div>
-              <p className="text-xs text-muted">Per session access. ₱{COMBAT_PRICING.session.toFixed(2)}</p>
+              <p className="text-xs text-muted">Per session access. ₱{boxingPricing.session.toFixed(2)}</p>
             </div>
             
             <div 
-              onClick={() => handleTypeChange("combat", "monthly")}
+              onClick={() => handleTypeChange("boxing_muaythai", "monthly")}
               className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                category === "combat" && type === "monthly" 
+                category === "boxing_muaythai" && type === "monthly" 
                 ? "border-accent-primary bg-accent-primary/10" 
                 : "border-white/20 hover:border-white/30 bg-card"
               }`}
             >
               <div className="flex justify-between items-center mb-1">
-                <span className={`font-semibold ${category === "combat" && type === "monthly" ? "text-accent-primary" : "text-primary"}`}>Monthly</span>
-                {category === "combat" && type === "monthly" && <div className="w-2 h-2 rounded-full bg-accent-primary" />}
+                <span className={`font-semibold ${category === "boxing_muaythai" && type === "monthly" ? "text-accent-primary" : "text-primary"}`}>Monthly</span>
+                {category === "boxing_muaythai" && type === "monthly" && <div className="w-2 h-2 rounded-full bg-accent-primary" />}
               </div>
-              <p className="text-xs text-muted">30 days access. Regular/Student pricing.</p>
+              <p className="text-xs text-muted">30 days access. Regular/Student pricing. ₱{boxingPricing.monthlyRegular.toFixed(2)}/₱{boxingPricing.monthlyStudent.toFixed(2)}</p>
             </div>
           </div>
         </div>
@@ -248,7 +262,7 @@ export function AddMemberForm() {
                 }`}
               >
                 <p className="font-semibold text-primary">Regular</p>
-                <p className="text-xs text-muted">₱{(category === "combat" ? COMBAT_PRICING : pricing).monthlyRegular.toFixed(2)}</p>
+                <p className="text-xs text-muted">₱{(category === "boxing_muaythai" ? boxingPricing : pricing).monthlyRegular.toFixed(2)}</p>
               </button>
               <button
                 type="button"
@@ -260,7 +274,7 @@ export function AddMemberForm() {
                 }`}
               >
                 <p className="font-semibold text-primary">Student</p>
-                <p className="text-xs text-muted">₱{(category === "combat" ? COMBAT_PRICING : pricing).monthlyStudent.toFixed(2)}</p>
+                <p className="text-xs text-muted">₱{(category === "boxing_muaythai" ? boxingPricing : pricing).monthlyStudent.toFixed(2)}</p>
               </button>
             </div>
           </div>

@@ -23,7 +23,7 @@ type MemberRow = {
   name: string
   email: string | null
   phone: string | null
-  membership_category: "gym" | "combat"
+  membership_category: "gym" | "boxing_muaythai"
   photo_url: string | null
   membership_type: "1_day" | "weekly" | "monthly"
   status: "active" | "suspended" | "cancelled"
@@ -172,6 +172,14 @@ export function MembersTable() {
       case 'weekly': return 'Weekly'
       case 'monthly': return 'Monthly'
       default: return type
+    }
+  }
+
+  const formatCategory = (cat: string) => {
+    switch(cat) {
+      case 'gym': return 'Gym'
+      case 'boxing_muaythai': return 'Boxing/Muay Thai'
+      default: return cat
     }
   }
 
@@ -349,7 +357,7 @@ export function MembersTable() {
                   </td>
                   <td className="px-6 py-4 text-secondary">
                     <div className="flex flex-col">
-                      <span className="capitalize">{member.membership_category}</span>
+                      <span className="capitalize">{formatCategory(member.membership_category)}</span>
                       <span className="text-[10px] text-muted">{formatMembershipType(member.membership_type)}</span>
                     </div>
                   </td>

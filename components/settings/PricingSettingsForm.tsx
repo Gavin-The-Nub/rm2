@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/Card"
 import { Input } from "@/components/ui/Input"
 import { Button } from "@/components/ui/Button"
 import { toast } from "sonner"
-import { DEFAULT_PRICING, type PricingConfig } from "@/lib/pricing"
+import { DEFAULT_PRICING, BOXING_PRICING, type PricingConfig } from "@/lib/pricing"
 
 type SettingsRow = {
   key: string
@@ -15,6 +15,7 @@ type SettingsRow = {
 
 export function PricingSettingsForm() {
   const [values, setValues] = useState<PricingConfig>(DEFAULT_PRICING)
+  const [boxingValues, setBoxingValues] = useState<PricingConfig>(BOXING_PRICING)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -23,19 +24,31 @@ export function PricingSettingsForm() {
       const { data, error } = await supabase
         .from("app_settings")
         .select("key,value")
-        .in("key", ["session_rate", "weekly_rate", "monthly_rate", "student_rate"])
+        .in("key", [
+          "session_rate", "weekly_rate", "monthly_rate", "student_rate",
+          "boxing_session_rate", "boxing_monthly_rate", "boxing_student_rate"
+        ])
 
       if (!error && data) {
-        const next = { ...DEFAULT_PRICING }
+        const nextGym = { ...DEFAULT_PRICING }
+        const nextBoxing = { ...BOXING_PRICING }
         for (const row of data as SettingsRow[]) {
           const parsed = Number(row.value)
           if (Number.isNaN(parsed)) continue
-          if (row.key === "session_rate") next.session = parsed
-          if (row.key === "weekly_rate") next.weekly = parsed
-          if (row.key === "monthly_rate") next.monthlyRegular = parsed
-          if (row.key === "student_rate") next.monthlyStudent = parsed
+          
+          // Gym
+          if (row.key === "session_rate") nextGym.session = parsed
+          if (row.key === "weekly_rate") nextGym.weekly = parsed
+          if (row.key === "monthly_rate") nextGym.monthlyRegular = parsed
+          if (row.key === "student_rate") nextGym.monthlyStudent = parsed
+          
+          // Boxing
+          if (row.key === "boxing_session_rate") nextBoxing.session = parsed
+          if (row.key === "boxing_monthly_rate") nextBoxing.monthlyRegular = parsed
+          if (row.key === "boxing_student_rate") nextBoxing.monthlyStudent = parsed
         }
-        setValues(next)
+        setValues(nextGym)
+        setBoxingValues(nextBoxing)
       }
 
       setLoading(false)
@@ -53,6 +66,9 @@ export function PricingSettingsForm() {
       { key: "weekly_rate", value: values.weekly },
       { key: "monthly_rate", value: values.monthlyRegular },
       { key: "student_rate", value: values.monthlyStudent },
+      { key: "boxing_session_rate", value: boxingValues.session },
+      { key: "boxing_monthly_rate", value: boxingValues.monthlyRegular },
+      { key: "boxing_student_rate", value: boxingValues.monthlyStudent },
     ]
 
     const { error } = await supabase
@@ -79,72 +95,133 @@ export function PricingSettingsForm() {
       </div>
 
       <form onSubmit={savePricing} className="space-y-4">
-        <div>
-          <label className="text-xs font-semibold text-secondary uppercase tracking-wider mb-2 block">
-            Session Rate
-          </label>
-          <Input
-            type="number"
-            min="0"
-            step="0.01"
-            value={values.session}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, session: Number(e.target.value) || 0 }))
-            }
-            disabled={loading || saving}
-            required
-          />
+        <div className="pt-4 border-t border-white/5">
+          <h2 className="text-lg font-semibold text-white mb-4">Gym Pricing</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold text-secondary uppercase tracking-wider mb-2 block">
+                Session Rate
+              </label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={values.session}
+                onChange={(e) =>
+                  setValues((prev) => ({ ...prev, session: Number(e.target.value) || 0 }))
+                }
+                disabled={loading || saving}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-secondary uppercase tracking-wider mb-2 block">
+                Weekly Rate
+              </label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={values.weekly}
+                onChange={(e) =>
+                  setValues((prev) => ({ ...prev, weekly: Number(e.target.value) || 0 }))
+                }
+                disabled={loading || saving}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-secondary uppercase tracking-wider mb-2 block">
+                Monthly Rate (Regular)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={values.monthlyRegular}
+                onChange={(e) =>
+                  setValues((prev) => ({ ...prev, monthlyRegular: Number(e.target.value) || 0 }))
+                }
+                disabled={loading || saving}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-secondary uppercase tracking-wider mb-2 block">
+                Student Rate (Monthly)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={values.monthlyStudent}
+                onChange={(e) =>
+                  setValues((prev) => ({ ...prev, monthlyStudent: Number(e.target.value) || 0 }))
+                }
+                disabled={loading || saving}
+                required
+              />
+            </div>
+          </div>
         </div>
 
-        <div>
-          <label className="text-xs font-semibold text-secondary uppercase tracking-wider mb-2 block">
-            Weekly Rate
-          </label>
-          <Input
-            type="number"
-            min="0"
-            step="0.01"
-            value={values.weekly}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, weekly: Number(e.target.value) || 0 }))
-            }
-            disabled={loading || saving}
-            required
-          />
-        </div>
+        <div className="pt-6 border-t border-white/5">
+          <h2 className="text-lg font-semibold text-white mb-4">Boxing / Muay Thai Pricing</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold text-secondary uppercase tracking-wider mb-2 block">
+                Session Rate
+              </label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={boxingValues.session}
+                onChange={(e) =>
+                  setBoxingValues((prev) => ({ ...prev, session: Number(e.target.value) || 0 }))
+                }
+                disabled={loading || saving}
+                required
+              />
+            </div>
 
-        <div>
-          <label className="text-xs font-semibold text-secondary uppercase tracking-wider mb-2 block">
-            Monthly Rate (Regular)
-          </label>
-          <Input
-            type="number"
-            min="0"
-            step="0.01"
-            value={values.monthlyRegular}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, monthlyRegular: Number(e.target.value) || 0 }))
-            }
-            disabled={loading || saving}
-            required
-          />
-        </div>
+            <div>
+              <label className="text-xs font-semibold text-secondary uppercase tracking-wider mb-2 block">
+                Monthly Rate (Regular)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={boxingValues.monthlyRegular}
+                onChange={(e) =>
+                  setBoxingValues((prev) => ({ ...prev, monthlyRegular: Number(e.target.value) || 0 }))
+                }
+                disabled={loading || saving}
+                required
+              />
+            </div>
 
-        <div>
-          <label className="text-xs font-semibold text-secondary uppercase tracking-wider mb-2 block">
-            Student Rate (Monthly)
-          </label>
-          <Input
-            type="number"
-            min="0"
-            step="0.01"
-            value={values.monthlyStudent}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, monthlyStudent: Number(e.target.value) || 0 }))
-            }
-            disabled={loading || saving}
-            required
-          />
+            <div>
+              <label className="text-xs font-semibold text-secondary uppercase tracking-wider mb-2 block">
+                Student Rate (Monthly)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={boxingValues.monthlyStudent}
+                onChange={(e) =>
+                  setBoxingValues((prev) => ({ ...prev, monthlyStudent: Number(e.target.value) || 0 }))
+                }
+                disabled={loading || saving}
+                required
+              />
+            </div>
+          </div>
         </div>
 
         <div className="pt-2 flex justify-end">

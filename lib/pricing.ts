@@ -14,7 +14,7 @@ export const DEFAULT_PRICING: PricingConfig = {
   monthlyStudent: 500,
 }
 
-export const COMBAT_PRICING: PricingConfig = {
+export const BOXING_PRICING: PricingConfig = {
   session: 200,
   weekly: 0, // Not specified
   monthlyRegular: 2500,

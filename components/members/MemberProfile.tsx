@@ -12,6 +12,7 @@ import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { RenewModal } from "./RenewModal"
 import { memberStatusBadgeVariant, memberStatusLabel } from "@/lib/memberSubscription"
+import { cn } from "@/lib/utils"
 import {
   notificationKindLabel,
   notificationStatusBadgeVariant,
@@ -225,7 +226,7 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
                 <div>
                   <p className="text-xs text-muted uppercase tracking-wider mb-1">Membership Type</p>
                   <p className="text-primary font-medium capitalize">
-                    {member.membership_category || "Gym"} — {member.membership_type.replace('_', ' ')}
+                    {member.membership_category === 'boxing_muaythai' ? 'Boxing/Muay Thai' : (member.membership_category === 'gym' ? 'Gym' : (member.membership_category || 'Gym'))} — {member.membership_type.replace('_', ' ')}
                   </p>
                 </div>
               </div>

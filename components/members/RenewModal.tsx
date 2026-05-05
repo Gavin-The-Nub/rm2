@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/Input"
 import { Button } from "@/components/ui/Button"
 import { toast } from "sonner"
 import { X, Loader2 } from "lucide-react"
-import { DEFAULT_PRICING, COMBAT_PRICING, type MonthlyPlan, type PricingConfig } from "@/lib/pricing"
+import { DEFAULT_PRICING, BOXING_PRICING, type MonthlyPlan, type PricingConfig } from "@/lib/pricing"
 import { addDaysISOInPH, phTodayISO } from "@/lib/phTime"
 
 type RenewModalProps = {
@@ -19,7 +19,7 @@ type RenewModalProps = {
     end_date: string
     status?: string | null
     membership_type?: "1_day" | "weekly" | "monthly" | null
-    membership_category?: "gym" | "combat" | null
+    membership_category?: "gym" | "boxing_muaythai" | null
     payment_amount?: number | null
   } | null
   onUpdate: () => void
@@ -27,62 +27,74 @@ type RenewModalProps = {
 
 export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProps) {
   const [loading, setLoading] = useState(false)
-  const [category, setCategory] = useState<"gym" | "combat">("gym")
+  const [category, setCategory] = useState<"gym" | "boxing_muaythai">("gym")
   const [type, setType] = useState<"1_day" | "weekly" | "monthly">("weekly")
   const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan>("regular")
   const [payment, setPayment] = useState("")
   const [pricing, setPricing] = useState<PricingConfig>(DEFAULT_PRICING)
+  const [boxingPricing, setBoxingPricing] = useState<PricingConfig>(BOXING_PRICING)
 
   useEffect(() => {
     const loadPricing = async () => {
       const { data, error } = await supabase
         .from("app_settings")
         .select("key,value")
-        .in("key", ["session_rate", "weekly_rate", "monthly_rate", "student_rate"])
+        .in("key", [
+          "session_rate", "weekly_rate", "monthly_rate", "student_rate",
+          "boxing_session_rate", "boxing_monthly_rate", "boxing_student_rate"
+        ])
 
-      if (error || !data) return
-
-      const nextPricing: PricingConfig = { ...DEFAULT_PRICING }
-      for (const row of data) {
-        const value = Number(row.value)
-        if (Number.isNaN(value)) continue
-        if (row.key === "session_rate") nextPricing.session = value
-        if (row.key === "weekly_rate") nextPricing.weekly = value
-        if (row.key === "monthly_rate") nextPricing.monthlyRegular = value
-        if (row.key === "student_rate") nextPricing.monthlyStudent = value
+      if (!error && data) {
+        const nextGym = { ...DEFAULT_PRICING }
+        const nextBoxing = { ...BOXING_PRICING }
+        for (const row of data) {
+          const parsed = Number(row.value)
+          if (Number.isNaN(parsed)) continue
+          
+          // Gym
+          if (row.key === "session_rate") nextGym.session = parsed
+          if (row.key === "weekly_rate") nextGym.weekly = parsed
+          if (row.key === "monthly_rate") nextGym.monthlyRegular = parsed
+          if (row.key === "student_rate") nextGym.monthlyStudent = parsed
+          
+          // Boxing
+          if (row.key === "boxing_session_rate") nextBoxing.session = parsed
+          if (row.key === "boxing_monthly_rate") nextBoxing.monthlyRegular = parsed
+          if (row.key === "boxing_student_rate") nextBoxing.monthlyStudent = parsed
+        }
+        setPricing(nextGym)
+        setBoxingPricing(nextBoxing)
       }
-
-      setPricing(nextPricing)
     }
 
     void loadPricing()
   }, [])
 
   const getDefaultPayment = useCallback((
-    membershipCategory: "gym" | "combat",
+    membershipCategory: "gym" | "boxing_muaythai",
     membershipType: "1_day" | "weekly" | "monthly",
     plan: MonthlyPlan
   ) => {
-    const currentPricing = membershipCategory === "combat" ? COMBAT_PRICING : pricing
+    const currentPricing = membershipCategory === "boxing_muaythai" ? boxingPricing : pricing
     if (membershipType === "1_day") return String(currentPricing.session)
     if (membershipType === "weekly") return String(currentPricing.weekly)
     return String(plan === "student" ? currentPricing.monthlyStudent : currentPricing.monthlyRegular)
-  }, [pricing])
+  }, [pricing, boxingPricing])
 
-  const inferMonthlyPlan = useCallback((membershipCategory: "gym" | "combat", amount: number): MonthlyPlan => {
-    const currentPricing = membershipCategory === "combat" ? COMBAT_PRICING : pricing
+  const inferMonthlyPlan = useCallback((membershipCategory: "gym" | "boxing_muaythai", amount: number): MonthlyPlan => {
+    const currentPricing = membershipCategory === "boxing_muaythai" ? boxingPricing : pricing
     const studentDiff = Math.abs(amount - currentPricing.monthlyStudent)
     const regularDiff = Math.abs(amount - currentPricing.monthlyRegular)
     return studentDiff <= regularDiff ? "student" : "regular"
-  }, [pricing])
+  }, [pricing, boxingPricing])
 
   useEffect(() => {
     if (!isOpen || !member) return
 
-    const nextCategory = (member.membership_category || "gym") as "gym" | "combat"
+    const nextCategory = (member.membership_category || "gym") as "gym" | "boxing_muaythai"
     const nextType = (member.membership_type || "weekly") as "1_day" | "weekly" | "monthly"
     const nextPlan =
-      nextType === "monthly" ? inferMonthlyPlan(nextCategory, Number(member.payment_amount) || pricing.monthlyRegular) : "regular"
+      nextType === "monthly" ? inferMonthlyPlan(nextCategory, Number(member.payment_amount) || (nextCategory === "boxing_muaythai" ? boxingPricing : pricing).monthlyRegular) : "regular"
 
     setCategory(nextCategory)
     setType(nextType)
@@ -92,7 +104,7 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
         ? String(member.payment_amount)
         : getDefaultPayment(nextCategory, nextType, nextPlan)
     )
-  }, [getDefaultPayment, inferMonthlyPlan, isOpen, member, pricing.monthlyRegular])
+  }, [getDefaultPayment, inferMonthlyPlan, isOpen, member, pricing, boxingPricing])
 
   const computeNewEndISO = useCallback((duration: "1_day" | "weekly" | "monthly", baseISO: string) => {
     if (!baseISO) return ""
@@ -112,7 +124,7 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
 
   if (!isOpen || !member) return null
 
-  const handleTypeChange = (newCategory: "gym" | "combat", newType: "1_day" | "weekly" | "monthly") => {
+  const handleTypeChange = (newCategory: "gym" | "boxing_muaythai", newType: "1_day" | "weekly" | "monthly") => {
     setCategory(newCategory)
     setType(newType)
     setPayment(getDefaultPayment(newCategory, newType, monthlyPlan))
@@ -220,20 +232,20 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
           </div>
 
           <div className="space-y-3">
-            <label className="text-xs font-semibold text-secondary uppercase tracking-wider block">Combat Duration</label>
+            <label className="text-xs font-semibold text-secondary uppercase tracking-wider block">Boxing / Muay Thai Duration</label>
             <div className="grid grid-cols-2 gap-2">
               <div 
-                onClick={() => handleTypeChange("combat", "1_day")}
+                onClick={() => handleTypeChange("boxing_muaythai", "1_day")}
                 className={`p-3 rounded-lg border text-center cursor-pointer transition-all ${
-                  category === "combat" && type === "1_day" ? "border-accent-primary bg-accent-primary/10 text-accent-primary" : "border-white/10 hover:border-white/20 text-primary"
+                  category === "boxing_muaythai" && type === "1_day" ? "border-accent-primary bg-accent-primary/10 text-accent-primary" : "border-white/10 hover:border-white/20 text-primary"
                 }`}
               >
                 <div className="font-semibold text-sm">Session</div>
               </div>
               <div 
-                onClick={() => handleTypeChange("combat", "monthly")}
+                onClick={() => handleTypeChange("boxing_muaythai", "monthly")}
                 className={`p-3 rounded-lg border text-center cursor-pointer transition-all ${
-                  category === "combat" && type === "monthly" ? "border-accent-primary bg-accent-primary/10 text-accent-primary" : "border-white/10 hover:border-white/20 text-primary"
+                  category === "boxing_muaythai" && type === "monthly" ? "border-accent-primary bg-accent-primary/10 text-accent-primary" : "border-white/10 hover:border-white/20 text-primary"
                 }`}
               >
                 <div className="font-semibold text-sm">Monthly</div>
@@ -254,8 +266,8 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
                       : "border-white/20 hover:border-white/30 text-primary"
                   }`}
                 >
-                  <p className="font-semibold text-sm">Regular</p>
-                  <p className="text-xs">₱{(category === "combat" ? COMBAT_PRICING : pricing).monthlyRegular.toFixed(2)}</p>
+                <p className="font-semibold text-sm">Regular</p>
+                  <p className="text-xs">₱{(category === "boxing_muaythai" ? boxingPricing : pricing).monthlyRegular.toFixed(2)}</p>
                 </button>
                 <button
                   type="button"
@@ -267,7 +279,7 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
                   }`}
                 >
                   <p className="font-semibold text-sm">Student</p>
-                  <p className="text-xs">₱{(category === "combat" ? COMBAT_PRICING : pricing).monthlyStudent.toFixed(2)}</p>
+                  <p className="text-xs">₱{(category === "boxing_muaythai" ? boxingPricing : pricing).monthlyStudent.toFixed(2)}</p>
                 </button>
               </div>
             </div>
