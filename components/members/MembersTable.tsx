@@ -258,7 +258,7 @@ export function MembersTable() {
         </div>
       )}
 
-      <div className="px-4 pb-3 border-b border-white/10 overflow-x-auto">
+      <div className="px-4 pb-3 border-b border-white/10">
         <div className="flex flex-wrap gap-2 min-w-min">
           {tabs.map((t) => {
             const count = tabCounts[t.id]

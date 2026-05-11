@@ -11,6 +11,7 @@ import { ArrowLeft, User, Calendar, Clock, Loader2, AlertCircle, Mail, ChevronLe
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { RenewModal } from "./RenewModal"
+import { ChangeTypeModal } from "./ChangeTypeModal"
 import { memberStatusBadgeVariant, memberStatusLabel } from "@/lib/memberSubscription"
 import { cn } from "@/lib/utils"
 import {
@@ -27,6 +28,7 @@ type MemberProfileProps = {
 export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false)
+  const [isChangeTypeModalOpen, setIsChangeTypeModalOpen] = useState(false)
   const [viewMonth, setViewMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -215,8 +217,16 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
 
         <div className="xl:col-span-8">
           <Card className="p-0 border border-white/10 overflow-hidden">
-            <div className="p-6 border-b border-white/10">
+            <div className="p-6 border-b border-white/10 flex justify-between items-center">
               <h3 className="text-sm font-semibold text-secondary uppercase tracking-wider">Membership Details</h3>
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                onClick={() => setIsChangeTypeModalOpen(true)}
+                className="text-xs"
+              >
+                Change Type
+              </Button>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="flex items-start gap-3">
@@ -405,6 +415,14 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
         isOpen={renewModalOpen} 
         onClose={closeRenewModal} 
         member={member} 
+        onUpdate={onUpdate}
+      />
+
+      {/* Change Type Modal */}
+      <ChangeTypeModal
+        isOpen={isChangeTypeModalOpen}
+        onClose={() => setIsChangeTypeModalOpen(false)}
+        member={member}
         onUpdate={onUpdate}
       />
     </div>
