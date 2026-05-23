@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
 import { createClient } from "@supabase/supabase-js"
 import type { AnalyticsTablesFilter } from "@/utils/date-filters"
+import { getAdjustedEndDate } from "@/lib/memberSubscription"
 
 async function getRenewalLogs(tables: AnalyticsTablesFilter) {
   const supabase = createClient(
@@ -75,8 +76,8 @@ async function getRenewalLogs(tables: AnalyticsTablesFilter) {
       date: dateLabel,
       name,
       type: typeLabels[r.membership_type] || r.membership_type,
-      prevEnd: formatDate(r.previous_end_date),
-      newEnd: formatDate(r.new_end_date),
+      prevEnd: formatDate(getAdjustedEndDate(r.previous_end_date, r.membership_type)),
+      newEnd: formatDate(getAdjustedEndDate(r.new_end_date, r.membership_type)),
       amount:
         (r as any).payment_amount != null
           ? `₱${Number((r as any).payment_amount).toFixed(2)}`

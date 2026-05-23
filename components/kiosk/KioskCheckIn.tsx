@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button"
 import { Badge } from "@/components/ui/Badge"
 import { supabase } from "@/utils/supabase/client"
 import { cn } from "@/lib/utils"
-import { isSubscriptionCountedActive, memberStatusLabel } from "@/lib/memberSubscription"
+import { isSubscriptionCountedActive, memberStatusLabel, getAdjustedEndDate } from "@/lib/memberSubscription"
 import { phTodayISO, parseISODateAtPHMidnight } from "@/lib/phTime"
 
 type SearchMember = {
@@ -207,7 +207,7 @@ export function KioskCheckIn() {
       const attendance = await fetchAttendance()
       setResult({
         memberName: member.name,
-        remaining: getRemainingLabel(member.end_date),
+        remaining: getRemainingLabel(getAdjustedEndDate(member.end_date, member.membership_type)),
         attendanceCount: attendance.count,
         attendanceDates: attendance.dates,
         isSuccess: false,
@@ -236,7 +236,7 @@ export function KioskCheckIn() {
     const attendance = await fetchAttendance()
     setResult({
       memberName: member.name,
-      remaining: getRemainingLabel(member.end_date),
+      remaining: getRemainingLabel(getAdjustedEndDate(member.end_date, member.membership_type)),
       attendanceCount: attendance.count,
       attendanceDates: attendance.dates,
       isSuccess: !duplicate,
@@ -316,7 +316,7 @@ export function KioskCheckIn() {
                       <span className="font-medium text-primary">{member.name}</span>
                       <Badge variant="neutral">{memberStatusLabel(member)}</Badge>
                     </div>
-                    <div className="text-xs text-muted mt-1">{getRemainingLabel(member.end_date)}</div>
+                    <div className="text-xs text-muted mt-1">{getRemainingLabel(getAdjustedEndDate(member.end_date, member.membership_type))}</div>
                   </button>
                 ))}
               </div>

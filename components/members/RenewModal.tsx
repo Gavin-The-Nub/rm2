@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import { X, Loader2 } from "lucide-react"
 import { DEFAULT_PRICING, BOXING_PRICING, type MonthlyPlan, type PricingConfig } from "@/lib/pricing"
 import { addDaysISOInPH, phTodayISO } from "@/lib/phTime"
+import { getAdjustedEndDate } from "@/lib/memberSubscription"
 
 type RenewModalProps = {
   isOpen: boolean
@@ -300,11 +301,11 @@ export function RenewModal({ isOpen, onClose, member, onUpdate }: RenewModalProp
           <div className="bg-input/50 p-4 rounded-xl border border-white/10 flex flex-col gap-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted">Current End Date:</span>
-              <span className="text-secondary font-medium">{member.end_date}</span>
+              <span className="text-secondary font-medium">{getAdjustedEndDate(member.end_date, member.membership_type)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted">New End Date:</span>
-              <span className="text-secondary font-medium">{newEndISO || "—"}</span>
+              <span className="text-secondary font-medium">{getAdjustedEndDate(newEndISO, type) || "—"}</span>
             </div>
             <div className="text-xs text-accent-primary bg-accent-primary/10 p-2 rounded-lg mt-1 border border-accent-primary/20">
               Note: Renewing will extend the membership by the selected duration from the current end date (if active) or from today (if expired).

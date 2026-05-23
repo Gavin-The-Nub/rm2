@@ -12,7 +12,7 @@ import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { RenewModal } from "./RenewModal"
 import { ChangeTypeModal } from "./ChangeTypeModal"
-import { memberStatusBadgeVariant, memberStatusLabel } from "@/lib/memberSubscription"
+import { memberStatusBadgeVariant, memberStatusLabel, getAdjustedEndDate } from "@/lib/memberSubscription"
 import { cn } from "@/lib/utils"
 import {
   notificationKindLabel,
@@ -248,10 +248,10 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
                 <div>
                   <p className="text-xs text-muted uppercase tracking-wider mb-1">Duration</p>
                   <p className="text-primary font-medium mb-1">
-                    {format(new Date(member.start_date), 'MMM d, yyyy')} — {format(new Date(member.end_date), 'MMM d, yyyy')}
+                    {format(new Date(member.start_date), 'MMM d, yyyy')} — {format(new Date(getAdjustedEndDate(member.end_date, member.membership_type)), 'MMM d, yyyy')}
                   </p>
                   <p className="text-xs text-muted">
-                    {Math.max(0, Math.ceil((new Date(member.end_date).getTime() - new Date().getTime()) / (1000 * 3600 * 24)))} days remaining
+                    {Math.max(0, Math.ceil((new Date(getAdjustedEndDate(member.end_date, member.membership_type)).getTime() - new Date().getTime()) / (1000 * 3600 * 24)))} days remaining
                   </p>
                 </div>
               </div>

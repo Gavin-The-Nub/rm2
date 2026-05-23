@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
 import { createClient } from "@supabase/supabase-js"
 import type { AnalyticsTablesFilter } from "@/utils/date-filters"
-import { memberStatusLabel } from "@/lib/memberSubscription"
+import { memberStatusLabel, getAdjustedEndDate } from "@/lib/memberSubscription"
 
 async function getMemberHistory(tables: AnalyticsTablesFilter) {
   const supabase = createClient(
@@ -85,7 +85,7 @@ async function getMemberHistory(tables: AnalyticsTablesFilter) {
       type: typeLabels[m.membership_type] || m.membership_type,
       status: memberStatusLabel(m),
       start: formatDate(m.start_date),
-      end: formatDate(m.end_date),
+      end: formatDate(getAdjustedEndDate(m.end_date, m.membership_type)),
       visits: visitCounts[m.id] || 0,
       lastSeen,
       paid: m.payment_amount != null ? `₱${Number(m.payment_amount).toFixed(2)}` : "—",

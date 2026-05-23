@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import { X, Loader2 } from "lucide-react"
 import { DEFAULT_PRICING, BOXING_PRICING, type MonthlyPlan, type PricingConfig } from "@/lib/pricing"
 import { addDaysISOInPH } from "@/lib/phTime"
+import { getAdjustedEndDate } from "@/lib/memberSubscription"
 
 type ChangeTypeModalProps = {
   isOpen: boolean
@@ -297,12 +298,12 @@ export function ChangeTypeModal({ isOpen, onClose, member, onUpdate }: ChangeTyp
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted">Current End Date:</span>
-              <span className="text-secondary font-medium">{member.end_date}</span>
+              <span className="text-secondary font-medium">{getAdjustedEndDate(member.end_date, member.membership_type)}</span>
             </div>
             {updateEndDate && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted">New End Date:</span>
-                <span className="text-accent-primary font-medium">{newEndISO || "—"}</span>
+                <span className="text-accent-primary font-medium">{getAdjustedEndDate(newEndISO, type) || "—"}</span>
               </div>
             )}
           </div>

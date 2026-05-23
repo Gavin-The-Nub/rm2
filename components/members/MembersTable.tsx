@@ -16,6 +16,7 @@ import {
   memberSubscriptionCategory,
   memberStatusBadgeVariant,
   memberStatusLabel,
+  getAdjustedEndDate,
 } from "@/lib/memberSubscription"
 
 type MemberRow = {
@@ -366,7 +367,7 @@ export function MembersTable() {
                     isExpired && "text-red-400 font-medium",
                     isExpiring && !isExpired && "text-[#FB923C] font-medium"
                   )}>
-                    {format(new Date(member.end_date), 'MMM d, yyyy')}
+                    {format(new Date(getAdjustedEndDate(member.end_date, member.membership_type)), 'MMM d, yyyy')}
                   </td>
                   <td className="px-6 py-4 text-right text-secondary">₱{member.paid.toFixed(2)}</td>
                   <td className="px-6 py-4 text-right text-secondary">₱{member.total_paid.toFixed(2)}</td>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { Resend } from "resend"
 import { createClient } from "@/utils/supabase/server"
-import { EXPIRING_SOON_DAYS } from "@/lib/memberSubscription"
+import { EXPIRING_SOON_DAYS, getAdjustedEndDate } from "@/lib/memberSubscription"
 import { addDaysISOInPH, parseISODateAtPHMidnight, phTodayISO } from "@/lib/phTime"
 
 type MemberRecord = {
@@ -115,7 +115,8 @@ async function handleSend(req: Request) {
       continue
     }
 
-    const remainingDays = daysUntilInPH(member.end_date)
+    const adjustedEndDate = getAdjustedEndDate(member.end_date, member.membership_type)
+    const remainingDays = daysUntilInPH(adjustedEndDate)
     const displayName = member.name?.trim() || "Member"
     const subject =
       remainingDays === 0
@@ -125,7 +126,7 @@ async function handleSend(req: Request) {
     const text = [
       `Hi ${displayName},`,
       "",
-      `This is a reminder that your ${member.membership_type ?? "gym"} membership end date is ${member.end_date}.`,
+      `This is a reminder that your ${member.membership_type ?? "gym"} membership end date is ${adjustedEndDate}.`,
       "Please renew on or before your end date to keep uninterrupted access.",
       "",
       "Thank you,",
@@ -149,7 +150,7 @@ async function handleSend(req: Request) {
         <p style="margin: 0 0 12px 0;">Hi ${displayName},</p>
         <p>
           This is a reminder that your <strong>${member.membership_type ?? "gym"}</strong> membership
-          end date is <strong>${member.end_date}</strong>.
+          end date is <strong>${adjustedEndDate}</strong>.
         </p>
         <p>Please renew on or before your end date to keep uninterrupted access.</p>
         <p style="margin: 0;">Thank you,<br />RM Gym</p>

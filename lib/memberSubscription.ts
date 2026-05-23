@@ -1,5 +1,5 @@
 import { startOfDay, addDays, isAfter } from "date-fns"
-import { phTodayISO, parseISODateAtPHMidnight } from "@/lib/phTime"
+import { phTodayISO, parseISODateAtPHMidnight, addDaysISOInPH } from "@/lib/phTime"
 
 /** Days from today (inclusive) treated as “expiring soon” for active memberships. */
 export const EXPIRING_SOON_DAYS = 3
@@ -7,15 +7,29 @@ export const EXPIRING_SOON_DAYS = 3
 export type MemberSubscriptionInput = {
   end_date: string
   status: string
+  membership_type?: string | null
 }
 
 export type SubscriptionCategory = "active" | "expiring_soon" | "expired" | "other"
 
+/**
+ * For weekly memberships, the system historically/currently saves the end_date as start_date + 7 days (e.g. next Monday).
+ * To make it expire on Sunday (giving exactly 7 active days, inclusive), we adjust the end_date by subtracting 1 day for business logic and UI display.
+ */
+export function getAdjustedEndDate(endDateISO: string, membershipType?: string | null): string {
+  if (membershipType === "weekly" && endDateISO) {
+    return addDaysISOInPH(endDateISO, -1)
+  }
+  return endDateISO
+}
+
 export function memberSubscriptionCategory(m: MemberSubscriptionInput): SubscriptionCategory {
-  if (!m.end_date) return "expired"
+  const adjustedEndDate = getAdjustedEndDate(m.end_date, m.membership_type)
+  if (!adjustedEndDate) return "expired"
+  
   // Use Philippines time for all “today / end date” comparisons.
   const todayISO = phTodayISO()
-  if (m.end_date < todayISO) return "expired"
+  if (adjustedEndDate < todayISO) return "expired"
 
   // For expiring-soon threshold, do date math at PH midnight.
   const todayPH = parseISODateAtPHMidnight(todayISO)
@@ -23,7 +37,7 @@ export function memberSubscriptionCategory(m: MemberSubscriptionInput): Subscrip
   const threshold = startOfDay(addDays(todayPH, EXPIRING_SOON_DAYS))
   let end: Date
   try {
-    end = startOfDay(parseISODateAtPHMidnight(m.end_date))
+    end = startOfDay(parseISODateAtPHMidnight(adjustedEndDate))
   } catch {
     return "expired"
   }
