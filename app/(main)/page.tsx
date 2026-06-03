@@ -2,7 +2,7 @@ import { StatCard } from "@/components/dashboard/StatCard"
 import { MiniChart } from "@/components/dashboard/MiniChart"
 import { PeakHoursChart } from "@/components/dashboard/PeakHoursChart"
 import { createClient } from "@/utils/supabase/server"
-import { startOfDay, startOfMonth, subDays, format, isAfter, parseISO, isSameDay } from "date-fns"
+import { startOfDay, subDays, format, parseISO, isSameDay } from "date-fns"
 import { isSubscriptionCountedActive, memberSubscriptionCategory } from "@/lib/memberSubscription"
 import { PH_TIME_ZONE, phTodayISO } from "@/lib/phTime"
 import { resolveAnalyticsPeriod } from "@/utils/date-filters"
@@ -15,11 +15,16 @@ export default async function Dashboard() {
   const { data: membersResponse } = await supabase.from('members').select('*')
   const { data: renewalsResponse } = await supabase.from('renewals').select('*')
   const { data: salesResponse } = await supabase.from('sales').select('*')
-  const attendanceWindowStart = format(subDays(new Date(), 29), "yyyy-MM-dd")
+  const todayInPH = phTodayISO()
   const { data: attendanceResponse } = await supabase
     .from("attendance")
     .select("check_in_date, created_at")
-    .gte("check_in_date", attendanceWindowStart)
+    .eq("check_in_date", todayInPH)
+
+  console.log("DASHBOARD SERVER DEBUG:", {
+    todayInPH,
+    count: attendanceResponse?.length ?? 0
+  })
 
   const members = membersResponse || []
   const renewals = renewalsResponse || []
@@ -32,7 +37,6 @@ export default async function Dashboard() {
   const todayStart = startOfDay(today)
   const resolved = resolveAnalyticsPeriod({})
   const { startDate, endDate, prevStart, prevEnd } = resolved.chart
-  const todayInPH = phTodayISO()
   
   // Keep status logic aligned with Members page (considers end_date + raw status)
   const activeMembers = members.filter((m) => isSubscriptionCountedActive(m))

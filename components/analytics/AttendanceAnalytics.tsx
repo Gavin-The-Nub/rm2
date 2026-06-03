@@ -13,14 +13,31 @@ async function getAttendanceData(range: string) {
   const now = new Date()
   const { startDate, endDate } = getRangeDates(range)
 
-  // All attendance in period
-  const { data: attendance } = await supabase
-    .from("attendance")
-    .select("id, member_id, check_in_date, created_at")
-    .gte("check_in_date", startDate)
-    .lte("check_in_date", endDate)
+  // All attendance in period (paginated to support >1000 records)
+  let allRecords: { id: string; member_id: string; check_in_date: string; created_at: string | null }[] = []
+  let page = 0
+  const pageSize = 1000
+  const maxPages = 15 // Safety cap
 
-  const records = attendance || []
+  while (page < maxPages) {
+    const { data, error } = await supabase
+      .from("attendance")
+      .select("id, member_id, check_in_date, created_at")
+      .gte("check_in_date", startDate)
+      .lte("check_in_date", endDate)
+      .range(page * pageSize, (page + 1) * pageSize - 1)
+
+    if (error) {
+      console.error("Error fetching attendance data for analytics:", error)
+      break
+    }
+    if (!data || data.length === 0) break
+    allRecords = allRecords.concat(data)
+    if (data.length < pageSize) break
+    page++
+  }
+
+  const records = allRecords
 
   const days = Math.round((now.getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
 

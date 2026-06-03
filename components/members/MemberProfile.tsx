@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/Button"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/Badge"
 import { format } from "date-fns"
-import { ArrowLeft, User, Calendar, Clock, Loader2, AlertCircle, Mail, ChevronLeft, ChevronRight, Phone } from "lucide-react"
+import { ArrowLeft, User, Calendar, Clock, Loader2, AlertCircle, Mail, ChevronLeft, ChevronRight, Phone, Edit } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { RenewModal } from "./RenewModal"
 import { ChangeTypeModal } from "./ChangeTypeModal"
+import { EditMemberModal } from "./EditMemberModal"
 import { memberStatusBadgeVariant, memberStatusLabel, getAdjustedEndDate } from "@/lib/memberSubscription"
 import { cn } from "@/lib/utils"
 import {
@@ -29,6 +30,7 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false)
   const [isChangeTypeModalOpen, setIsChangeTypeModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [viewMonth, setViewMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -158,6 +160,9 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
             {deleteLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
             Delete Account
           </Button>
+          <Button variant="secondary" onClick={() => setIsEditModalOpen(true)}>
+            Edit Profile
+          </Button>
           <Button onClick={() => setIsRenewModalOpen(true)}>
             Renew Membership
           </Button>
@@ -186,7 +191,16 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
               </div>
             </div>
 
-            <h2 className="text-2xl font-bold text-primary mb-1">{member.name}</h2>
+            <div className="flex items-center justify-center gap-2 mb-1 group/name">
+              <h2 className="text-2xl font-bold text-primary">{member.name}</h2>
+              <button 
+                onClick={() => setIsEditModalOpen(true)}
+                className="opacity-0 group-hover/name:opacity-100 p-1 hover:bg-white/5 rounded transition-all text-muted hover:text-primary animate-in fade-in duration-150"
+                title="Edit Profile"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
+            </div>
             {member.email && (
               <p className={cn("text-secondary text-sm", member.phone ? "mb-1" : "mb-4")}>
                 {member.email}
@@ -422,6 +436,14 @@ export function MemberProfile({ member, onUpdate }: MemberProfileProps) {
       <ChangeTypeModal
         isOpen={isChangeTypeModalOpen}
         onClose={() => setIsChangeTypeModalOpen(false)}
+        member={member}
+        onUpdate={onUpdate}
+      />
+
+      {/* Edit Profile Modal */}
+      <EditMemberModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
         member={member}
         onUpdate={onUpdate}
       />

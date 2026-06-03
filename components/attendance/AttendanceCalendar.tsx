@@ -58,19 +58,32 @@ export function AttendanceCalendar() {
       const start = phDateISOFromDate(startOfMonth(currentMonth))
       const end = phDateISOFromDate(endOfMonth(currentMonth))
 
-      const { data, error } = await supabase
-        .from("attendance")
-        .select("check_in_date")
-        .gte("check_in_date", start)
-        .lte("check_in_date", end)
+      let allRows: { check_in_date: string }[] = []
+      let page = 0
+      const pageSize = 1000
+      const maxPages = 15 // safety cap
 
-      if (error) {
-        console.error("Error fetching month summary:", error)
-        return
+      while (page < maxPages) {
+        const { data, error } = await supabase
+          .from("attendance")
+          .select("check_in_date")
+          .gte("check_in_date", start)
+          .lte("check_in_date", end)
+          .range(page * pageSize, (page + 1) * pageSize - 1)
+
+        if (error) {
+          console.error("Error fetching month summary:", error)
+          return
+        }
+
+        if (!data || data.length === 0) break
+        allRows = allRows.concat(data)
+        if (data.length < pageSize) break
+        page++
       }
 
       const counts: Record<string, number> = {}
-      data.forEach((row) => {
+      allRows.forEach((row) => {
         counts[row.check_in_date] = (counts[row.check_in_date] || 0) + 1
       })
       setMonthAttendanceCounts(counts)

@@ -28,29 +28,43 @@ async function getMemberHistory(tables: AnalyticsTablesFilter) {
 
   const { data: members, count } = await query
 
-  // Get attendance counts per member
+  // Get attendance records to compute visit counts and last check-in per member (paginated to support >1000 records)
   const memberIds = (members || []).map((m) => m.id)
-  const { data: attendance } = memberIds.length
-    ? await supabase.from("attendance").select("member_id").in("member_id", memberIds)
-    : { data: [] }
-
-  const visitCounts: Record<string, number> = {}
-  ;(attendance || []).forEach((a) => {
-    visitCounts[a.member_id] = (visitCounts[a.member_id] || 0) + 1
-  })
-
-  // Last check-in per member
-  const { data: lastCheckins } = memberIds.length
-    ? await supabase
+  let allAttendance: { member_id: string; check_in_date: string }[] = []
+  if (memberIds.length > 0) {
+    let page = 0
+    const pageSize = 1000
+    const maxPages = 15 // safety cap
+    while (page < maxPages) {
+      const { data, error } = await supabase
         .from("attendance")
         .select("member_id, check_in_date")
         .in("member_id", memberIds)
-        .order("check_in_date", { ascending: false })
-    : { data: [] }
+        .range(page * pageSize, (page + 1) * pageSize - 1)
 
+      if (error) {
+        console.error("Error fetching member history attendance data:", error)
+        break
+      }
+      if (!data || data.length === 0) break
+      allAttendance = allAttendance.concat(data)
+      if (data.length < pageSize) break
+      page++
+    }
+  }
+
+  const visitCounts: Record<string, number> = {}
   const lastSeenMap: Record<string, string> = {}
-  ;(lastCheckins || []).forEach((a) => {
-    if (!lastSeenMap[a.member_id]) lastSeenMap[a.member_id] = a.check_in_date
+
+  allAttendance.forEach((a) => {
+    // Count visits
+    visitCounts[a.member_id] = (visitCounts[a.member_id] || 0) + 1
+    
+    // Track last seen (latest date)
+    const currentLast = lastSeenMap[a.member_id]
+    if (!currentLast || a.check_in_date > currentLast) {
+      lastSeenMap[a.member_id] = a.check_in_date
+    }
   })
 
   const typeLabels: Record<string, string> = {
