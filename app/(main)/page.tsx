@@ -2,9 +2,9 @@ import { StatCard } from "@/components/dashboard/StatCard"
 import { MiniChart } from "@/components/dashboard/MiniChart"
 import { PeakHoursChart } from "@/components/dashboard/PeakHoursChart"
 import { createClient } from "@/utils/supabase/server"
-import { startOfDay, subDays, format, parseISO, isSameDay } from "date-fns"
+import { subDays, format } from "date-fns"
 import { isSubscriptionCountedActive, memberSubscriptionCategory } from "@/lib/memberSubscription"
-import { PH_TIME_ZONE, phTodayISO } from "@/lib/phTime"
+import { PH_TIME_ZONE, phTodayISO, phDateISOFromDate, parseISODateAtPHMidnight } from "@/lib/phTime"
 import { resolveAnalyticsPeriod } from "@/utils/date-filters"
 
 // Ensure dynamic rendering because we fetch live database
@@ -33,8 +33,7 @@ export default async function Dashboard() {
   const renewalDate = (r: any) => r.created_at || r.renewal_date
   const renewalAmount = (r: any) => Number(r.payment_amount ?? r.amount ?? 0)
 
-  const today = new Date()
-  const todayStart = startOfDay(today)
+  const todayPH = parseISODateAtPHMidnight(todayInPH)
   const resolved = resolveAnalyticsPeriod({})
   const { startDate, endDate, prevStart, prevEnd } = resolved.chart
   
@@ -43,15 +42,20 @@ export default async function Dashboard() {
   const totalActiveMembers = activeMembers.length
 
   // Today's New Members
-  const todaysNewMembers = members.filter(m => m.created_at && isSameDay(parseISO(m.created_at), todayStart))
+  const todaysNewMembers = members.filter(m => m.created_at && phDateISOFromDate(new Date(m.created_at)) === todayInPH)
   
   // Today's Revenue
-  const todaysMemberSales = members.filter(m => m.created_at && isSameDay(parseISO(m.created_at), todayStart)).reduce((sum, m) => sum + (m.payment_amount || 0), 0)
+  const todaysMemberSales = members
+    .filter(m => m.created_at && phDateISOFromDate(new Date(m.created_at)) === todayInPH)
+    .reduce((sum, m) => sum + (m.payment_amount || 0), 0)
   const todaysRenewalSales = renewals
-    .filter(r => renewalDate(r) && isSameDay(parseISO(renewalDate(r)), todayStart))
+    .filter(r => {
+      const d = renewalDate(r)
+      return d && phDateISOFromDate(new Date(d)) === todayInPH
+    })
     .reduce((sum, r) => sum + renewalAmount(r), 0)
   const todaysStoreSales = sales
-    .filter(s => s.created_at && isSameDay(parseISO(s.created_at), todayStart))
+    .filter(s => s.created_at && phDateISOFromDate(new Date(s.created_at)) === todayInPH)
     .reduce((sum, s) => sum + Number(s.total_price || 0), 0)
   const todaysRevenue = todaysMemberSales + todaysRenewalSales + todaysStoreSales
   
@@ -169,7 +173,7 @@ export default async function Dashboard() {
   // WEEKLY CHARTS DATA PREP
   // Last 7 days including today
   const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const d = subDays(todayStart, 6 - i)
+    const d = subDays(todayPH, 6 - i)
     return {
       date: d,
       name: format(d, 'EEE MMM d'), // Mon Apr 7, etc.
@@ -177,7 +181,14 @@ export default async function Dashboard() {
   })
 
   const weeklySalesData = last7Days.map(day => {
-    const isDay = (dateString: string) => isSameDay(parseISO(dateString), day.date)
+    const dayISO = phDateISOFromDate(day.date)
+    const isDay = (dateString: string) => {
+      try {
+        return phDateISOFromDate(new Date(dateString)) === dayISO
+      } catch {
+        return false
+      }
+    }
     
     let oneDaySales = 0
     let weeklySales = 0

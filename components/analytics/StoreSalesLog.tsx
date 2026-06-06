@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
 import { createClient } from "@supabase/supabase-js"
 import type { AnalyticsTablesFilter } from "@/utils/date-filters"
+import { phTodayISO, addDaysISOInPH, phDateISOFromDate } from "@/lib/phTime"
 
 async function getSalesLogs(tables: AnalyticsTablesFilter) {
   const supabase = createClient(
@@ -60,20 +61,21 @@ async function getSalesLogs(tables: AnalyticsTablesFilter) {
 
   const summaryRows = Object.values(itemSummary).sort((a, b) => b.totalSold - a.totalSold)
 
-  const today     = new Date().toISOString().split("T")[0]
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0]
+  const today     = phTodayISO()
+  const yesterday = addDaysISOInPH(today, -1)
 
   const rows = (sales || []).map((s) => {
     const saleTimestamp = (s as any).created_at
     const dateObj = new Date(saleTimestamp)
-    const dateStr = dateObj.toISOString().split("T")[0]
-    const timeStr = dateObj.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    const dateStr = phDateISOFromDate(dateObj)
+    const timeStr = dateObj.toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" })
 
     let dateLabel = ""
     if (dateStr === today) dateLabel = `Today, ${timeStr}`
     else if (dateStr === yesterday) dateLabel = `Yesterday, ${timeStr}`
     else {
       dateLabel = `${dateObj.toLocaleDateString("en-US", {
+        timeZone: "Asia/Manila",
         weekday: "short", month: "short", day: "numeric", year: "numeric",
       })}, ${timeStr}`
     }

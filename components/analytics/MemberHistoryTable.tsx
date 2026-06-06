@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/Badge"
 import { createClient } from "@supabase/supabase-js"
 import type { AnalyticsTablesFilter } from "@/utils/date-filters"
 import { memberStatusLabel, getAdjustedEndDate } from "@/lib/memberSubscription"
+import { phTodayISO, addDaysISOInPH } from "@/lib/phTime"
 
 async function getMemberHistory(tables: AnalyticsTablesFilter) {
   const supabase = createClient(
@@ -71,8 +72,8 @@ async function getMemberHistory(tables: AnalyticsTablesFilter) {
     "1_day": "1 Day", "1_week": "Weekly",
     "1_month": "Monthly", "student_1_month": "Student",
   }
-  const today     = new Date().toISOString().split("T")[0]
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0]
+  const today     = phTodayISO()
+  const yesterday = addDaysISOInPH(today, -1)
 
   const rows = (members || []).map((m) => {
     const lastSeenDate = lastSeenMap[m.id]
@@ -81,14 +82,15 @@ async function getMemberHistory(tables: AnalyticsTablesFilter) {
       if (lastSeenDate === today)     lastSeen = "Today"
       else if (lastSeenDate === yesterday) lastSeen = "Yesterday"
       else {
-        const d = new Date(lastSeenDate + "T00:00:00")
-        lastSeen = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+        const d = new Date(lastSeenDate + "T00:00:00+08:00")
+        lastSeen = d.toLocaleDateString("en-US", { timeZone: "Asia/Manila", weekday: "short", month: "short", day: "numeric", year: "numeric" })
       }
     }
 
     const formatDate = (d: string | null) => {
       if (!d) return "—"
-      return new Date(d + "T00:00:00").toLocaleDateString("en-US", {
+      return new Date(d + "T00:00:00+08:00").toLocaleDateString("en-US", {
+        timeZone: "Asia/Manila",
         weekday: "short", month: "short", day: "numeric", year: "numeric",
       })
     }

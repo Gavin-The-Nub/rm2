@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/Badge"
 import { createClient } from "@supabase/supabase-js"
 import type { AnalyticsTablesFilter } from "@/utils/date-filters"
 import { getAdjustedEndDate } from "@/lib/memberSubscription"
+import { phTodayISO, addDaysISOInPH, phDateISOFromDate } from "@/lib/phTime"
 
 async function getRenewalLogs(tables: AnalyticsTablesFilter) {
   const supabase = createClient(
@@ -46,28 +47,30 @@ async function getRenewalLogs(tables: AnalyticsTablesFilter) {
     "student_monthly": "Student Monthly",
   }
 
-  const today     = new Date().toISOString().split("T")[0]
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0]
+  const today     = phTodayISO()
+  const yesterday = addDaysISOInPH(today, -1)
 
   const rows = (renewals || []).map((r) => {
     const name = memberNames.get((r as any).member_id) ?? "Unknown"
 
     const renewalTimestamp = (r as any).created_at
     const dateObj = new Date(renewalTimestamp)
-    const dateStr = dateObj.toISOString().split("T")[0]
-    const timeStr = dateObj.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    const dateStr = phDateISOFromDate(dateObj)
+    const timeStr = dateObj.toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" })
 
     let dateLabel = ""
     if (dateStr === today) dateLabel = `Today, ${timeStr}`
     else if (dateStr === yesterday) dateLabel = `Yesterday, ${timeStr}`
     else {
       dateLabel = `${dateObj.toLocaleDateString("en-US", {
+        timeZone: "Asia/Manila",
         weekday: "short", month: "short", day: "numeric", year: "numeric",
       })}, ${timeStr}`
     }
 
     const formatDate = (d: string) =>
-      d ? new Date(d + "T00:00:00").toLocaleDateString("en-US", {
+      d ? new Date(d + "T00:00:00+08:00").toLocaleDateString("en-US", {
+        timeZone: "Asia/Manila",
         weekday: "short", month: "short", day: "numeric", year: "numeric",
       }) : "—"
 

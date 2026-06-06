@@ -2,6 +2,7 @@ import React from "react"
 import { Card } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
 import { createClient } from "@supabase/supabase-js"
+import { phTodayISO, addDaysISOInPH } from "@/lib/phTime"
 
 const MONTHS = [
   "January","February","March","April","May","June",
@@ -46,8 +47,8 @@ async function getAttendanceLogs(month: number | null, year: number | null) {
     "1_month": "Monthly", "student_1_month": "Student",
   }
 
-  const today     = new Date().toISOString().split("T")[0]
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0]
+  const today     = phTodayISO()
+  const yesterday = addDaysISOInPH(today, -1)
 
   const rows = (logs || []).map((log) => {
     const member = (log as any).members
@@ -58,15 +59,16 @@ async function getAttendanceLogs(month: number | null, year: number | null) {
     const checkInDate = log.check_in_date
     let dateLabel = ""
     if (checkInDate === today) {
-      const time = new Date(log.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+      const time = new Date(log.created_at).toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" })
       dateLabel = `Today, ${time}`
     } else if (checkInDate === yesterday) {
-      const time = new Date(log.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+      const time = new Date(log.created_at).toLocaleTimeString("en-US", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" })
       dateLabel = `Yesterday, ${time}`
     } else {
       // Show full date with day of week
-      const d = new Date(checkInDate + "T00:00:00")
+      const d = new Date(checkInDate + "T00:00:00+08:00")
       dateLabel = d.toLocaleDateString("en-US", {
+        timeZone: "Asia/Manila",
         weekday: "short", month: "short", day: "numeric", year: "numeric",
       })
     }
